@@ -8,11 +8,12 @@
 
 namespace sjtu
 {
-	struct edge_info
+	/*struct edge_info
 	{
 		void split(edge_info &a, edge_info &b) {}
 		void merge(const edge_info &a, const edge_info &b) {}
-	};
+	};*/
+	template<typename edge_info>
 	class ETT
 	{
 	protected:
