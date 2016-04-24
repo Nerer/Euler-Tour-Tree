@@ -42,6 +42,8 @@ namespace sjtu
 		{
 			friend class splay;
 		public:
+			iterator() : now(nullptr), tree(nullptr) {}
+
 			size_t get_index()
 			{
 				splay_node(now);
@@ -248,19 +250,19 @@ namespace sjtu
 			merge(tmp.split(tmp.begin, after));
 			return *this;
 		}
-		splay & insert(const node_info &info)
+		iterator insert(const node_info &info)
 		{
 			splay tmp(new node(info, this));
 			merge(tmp);
-			return *this;
+			return --end();
 		}
-		splay & insert(const node_info &info, iterator iter, position pos = before)
+		iterator insert(const node_info &info, iterator iter, position pos = before)
 		{
 			splay tmp = split(iter, pos);
 			splay tmp2(new node(info, this));
 			merge(tmp2);
 			merge(tmp);
-			return *this;
+			return pos == before ? --iter : ++iter;
 		}
 		iterator find_node(size_t index)
 		{
@@ -461,7 +463,7 @@ namespace sjtu
 				{
 					static void invoke(node *o)
 					{
-						o->info.merge(o->lchild ? o->lchild->info : node_info(), o->rchild ? o->rchild->info : node_info);
+						o->info.merge(o->lchild ? o->lchild->info : node_info(), o->rchild ? o->rchild->info : node_info());
 					}
 				};
 				template<typename RetType, typename ClassName>
