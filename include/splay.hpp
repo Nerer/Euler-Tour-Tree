@@ -203,6 +203,7 @@ namespace sjtu
 				if(root)
 					root->tree = this;
 				other.root = nullptr;
+				return *this;
 			}
 			(--end()).access();
 			root->pushdown();
