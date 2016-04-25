@@ -506,8 +506,11 @@ namespace sjtu
 	protected:
 		splay(node *root) : root(root)
 		{
-			root->parent = nullptr;
-			root->tree = this;
+			if (root)
+			{
+				root->parent = nullptr;
+				root->tree = this;
+			}
 		}
 		static void splay_node(node *o)
 		{
