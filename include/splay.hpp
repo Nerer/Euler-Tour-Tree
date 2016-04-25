@@ -51,6 +51,17 @@ namespace sjtu
 				return now->lchild ? now->lchild->size : 0;
 			}
 
+			bool is_accessible() const 
+			{
+				return now;
+			}
+
+			splay<node_info> * get_splay()
+			{
+				splay_node(now);
+				return tree = now->tree;
+			}
+
 			node_info & access()
 			{
 				splay_node(now);
