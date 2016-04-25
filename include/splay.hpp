@@ -200,7 +200,8 @@ namespace sjtu
 			if (!root)
 			{
 				root = other.root;
-				root->tree = this;
+				if(root)
+					root->tree = this;
 				other.root = nullptr;
 			}
 			(--end()).access();
