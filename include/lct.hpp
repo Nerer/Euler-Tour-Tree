@@ -1,214 +1,193 @@
 #ifndef SJTU_LCT_HPP
 #define SJTU_LCT_HPP
-#include<functional>
-#include<map>
+
+#include "splay.hpp"
+#include <unordered_set>
+#include <functional>
+
 namespace sjtu
 {
-	class lct
+	/*struct point_info
+	{
+		void split(point_info &a, point_info &b) {}
+		void merge(const point_info &a, const point_info &b) {}
+	};*/
+	//Maintain a Forest
+	template<typename point_info>
+	class LCT
 	{
 	protected:
-		class node
+		struct lct_node;
+		typedef splay<lct_node> lct_splay;
+	public:
+		class point : protected lct_splay::iterator
 		{
+			friend class LCT;
 		public:
-			bool on;
-			bool rev;
-			node *fa;
-			node* ch[2];
-			int id;
-			node(bool _on, int _id) :on(_on), rev(0), fa(), id(_id), ch() {}
-			~node() {}
-			void pushdown()
+			point() = default;
+			point_info & operator*()
 			{
-				if (rev)
-				{
-					std::swap(ch[0], ch[1]);
-					if (ch[0]) ch[0]->rev ^= 1;
-					if (ch[1]) ch[1]->rev ^= 1;
-					rev = 0;
-				}
-				return;
+				return this->access().info;
 			}
-			void rotate()
+			point_info * operator->()
 			{
-				if (!fa->on) return;
-				fa->pushdown();
-				pushdown();
-				bool f = this == fa->ch[1];
-				bool o = f ^ 1;
-				node* temp = fa->fa;
-				if (temp->on)
-					temp->ch[fa == temp->ch[1]] = this;
-				fa->ch[f] = ch[o];
-				if (ch[o]) ch[o]->fa = fa;
-				ch[o] = fa;
-				fa->fa = this;
-				fa = temp;
-				return;
+				return &this->access().info;
 			}
-			//void reverse() { rev ^= 1; return; }
-			void splay()
+
+			bool operator==(const point &other) const
 			{
-				while (fa->on)
-				{
-					if (!fa->fa->on)
-						rotate();
-					else
-					{
-						bool f1 = this == fa->ch[1];
-						bool f2 = fa == fa->fa->ch[1];
-						if (f1 == f2)
-						{
-							fa->rotate();
-							rotate();
-						}
-						else
-						{
-							rotate();
-							rotate();
-						}
-					}
-				}
-				return;
+				return tree == other.tree && iterator::operator==(other);
 			}
-		public:
-			int tid()
+			bool operator!=(const point &other) const
 			{
-				return id;
+				return tree != other.tree || iterator::operator==(other);
 			}
+		protected:
+			LCT *tree;
+		protected:
+			point(typename lct_splay::iterator &iter, LCT *tree) : iterator(iter), tree(tree) {}
 		};
-		std::map<int,node*> mp;
 	public:
-		lct() :mp()
+		LCT() = default;
+
+		~LCT()
 		{
-			mp[0] = nullptr;
+			for (lct_splay * i : list_splay)
+				delete i;
 		}
-		~lct()
+
+		point insert(const point_info &pinfo)
 		{
-			std::map<int,node*>::iterator iter = mp.begin();
-			++iter;
-			for (; iter != mp.end(); ++iter)
+			lct_splay * sp = new lct_splay();
+			sp->insert(lct_node(pinfo));
+			list_splay.insert(sp);
+			return point(sp->begin(), this);
+		}
+		void link(point u, point v)
+		{
+			if (get_root(u) == get_root(v))
+				throw std::runtime_error("Cannot link two points in the same tree");
+			evert(u);
+			access(v);
+			lct_splay * sp = u.get_splay();
+			v.get_splay()->merge(*sp);
+			assert(sp->empty());
+			list_splay.erase(sp);
+			delete sp;
+		}
+		void cut(point o)
+		{
+			if (get_root(o) == o)
+				return;
+			access(o);
+			lct_splay * sp = o.get_splay();
+			auto tmp = sp->split(o);
+			if (!tmp.empty())
+				list_splay.insert(new lct_splay(std::move(tmp)));
+			if (sp->empty())
 			{
-				node* t = iter->second;
-				if (t->fa)
-				{
-					if (!t->fa->on) delete t->fa;
-					else
-					{
-						bool f = t == (t->fa->ch[1]);
-						t->fa->ch[f] = nullptr;
-					}
-				}
-				if (t->ch[0]) t->ch[0]->fa = nullptr;
-				if (t->ch[1]) t->ch[1]->fa = nullptr;
-				delete t;
+				list_splay.erase(sp);
+				delete sp;
 			}
 		}
-		void clear()
-		{
-			std::map<int,node*>::iterator iter = mp.begin();
-			++iter;
-			for (; iter != mp.end(); ++iter)
-			{
-				node* t = iter->second;
-				if (t->fa)
-				{
-					if (!t->fa->on) delete t->fa;
-					else
-					{
-						bool f = t == (t->fa->ch[1]);
-						t->fa->ch[f] = nullptr;
-					}
-				}
-				if (t->ch[0]) t->ch[0]->fa = nullptr;
-				if (t->ch[1]) t->ch[1]->fa = nullptr;
-				delete t;
-			}
-			mp.clear();
-		}
-	public:
-		void access(node* u)
-		{
-			node* v = nullptr;
-			while (u)
-			{
-				u->splay();
-				u->pushdown();
-				if (u->ch[1])
-					u->ch[1]->fa = new node(0, u->id);
-				if (v)
-				{
-					if (!v->fa->on) delete v->fa;
-					v->fa = u;
-				}
-				u->ch[1] = v;
-				v = u;
-				u = mp[u->fa->id];
-			}
-			return;
-		}
-	public:
-		node* find_root(node* o)
+		void evert(point o)
 		{
 			access(o);
-			o->splay();
-			o->pushdown();
-			while (o->ch[0])
-			{
-				o = o->ch[0];
-				o->pushdown();
-			}
-			o->splay();
-			return mp[o->id];
+			o.get_splay()->reverse();
 		}
-		void cut(node* o)
+		point get_root(point o)
 		{
 			access(o);
-			o->splay();
-			o->pushdown();
-			if (o->ch[0]) o->ch[0]->fa = new node(0, 0);
-			o->ch[0] = nullptr;
-			return;
+			return point(o.get_splay()->begin(), this);
 		}
-		void change_root(node* o)
+		point get_lca(point u, point v)
 		{
-			access(o);
-			o->splay();
-			o->rev ^= 1;
-			return;
+			access(u);
+			access(v);
+			if (u.get_splay() == v.get_splay())
+				return u;
+			return point(((lct_splay::iterator)u)->parent, this);
 		}
-		//把x连到y上
-		void link(node* x, node* y)
+		point_info query_path(typename lct_splay::iterator u, typename lct_splay::iterator v)
 		{
-			change_root(x);
-			access(y);
-			y->splay();
-			y->pushdown();
-			y->ch[1] = x;
-			if (x->fa->on) delete x->fa;
-			x->fa = y;
-			return;
-		}
-		node* find(int x)
-		{
-			std::map<int,node*>::iterator iter;
-			iter = mp.find(x);
-			if (iter == mp.end())
+			access(u);
+			access(v);
+			if (u.get_splay() == v.get_splay())
 			{
-				node* ret;
-				ret = mp[x] = new node(1, x);
-				mp[x]->fa = new node(0, 0);
-				return ret;
+				//root ---> u ---> v
+				lct_splay * sp = u.get_splay();
+				auto tmp = sp->split(u);
+				point_info result = tmp.begin()->info;
+				sp->merge(tmp);
+				return result;
 			}
-			else return iter->second;
+			point_info result;
+			lct_splay * sp = v.get_splay();
+			auto tmp = sp->split(u->parent);
+			result.merge(u->info, tmp.begin()->info);
+			sp->merge(tmp);
+			return result;
 		}
-		node* lca(node* x, node* y)
+		void modify_path(typename lct_splay::iterator u, typename lct_splay::iterator v, std::function<void(point_info&)> funcModify)
 		{
-			access(x);
-			access(y);
-			x->splay();
-			if (x->fa->id) return mp[x->fa->id];
-			else return x;
+			access(u);
+			access(v);
+			if (u.get_splay() == v.get_splay())
+			{
+				lct_splay * sp = u.get_splay();
+				auto tmp = sp->split(u);
+				funcModify(tmp.begin()->info);
+				sp->merge(tmp);
+			}
+			else
+			{
+				lct_splay * sp = v.get_splay();
+				auto tmp = sp->split(u->parent);
+				u.get_splay()->merge(tmp);
+				funcModify(u.get_splay()->begin()->info);
+				tmp = u.get_splay()->split(u->parent);
+				sp->merge(tmp);
+			}
 		}
+		
+	protected:
+		struct lct_node
+		{
+			point_info info;
+			typename lct_splay::iterator parent;
+
+			lct_node() = default;
+			lct_node(const point_info &info) : info(info) {}
+		};
+
+		std::unordered_set<lct_splay *> list_splay;
+
+	protected:
+		void access(point o)
+		{
+			if (o.tree != this)
+				throw std::runtime_error("Invalid Point");
+
+			lct_splay * sp = o.get_splay();
+			auto tmp = sp->split(o, lct_splay::after);
+			if (!tmp.empty())
+			{
+				tmp.begin()->parent = o;
+				list_splay.insert(new lct_splay(std::move(tmp)));
+			}
+			
+			auto head = sp->begin();
+			if (head->parent.is_accessible())
+			{
+				access(point(head->parent, this));
+				head->parent.get_splay()->merge(*sp);
+				head->parent = lct_splay::iterator();
+				assert(sp->empty());
+				list_splay.erase(sp);
+				delete sp;
+			}
+		}
+		
 	};
 }
 #endif

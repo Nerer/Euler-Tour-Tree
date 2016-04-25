@@ -51,6 +51,17 @@ namespace sjtu
 				return now->lchild ? now->lchild->size : 0;
 			}
 
+			bool is_accessible() const 
+			{
+				return now;
+			}
+
+			splay<node_info> * get_splay()
+			{
+				splay_node(now);
+				return tree = now->tree;
+			}
+
 			node_info & access()
 			{
 				splay_node(now);
@@ -133,10 +144,10 @@ namespace sjtu
 			}
 		protected:
 			node *now;
-			const splay *tree;
+			splay *tree;
 
 		protected:
-			iterator(node *now, const splay *tree) : now(now), tree(tree) {}
+			iterator(node *now, splay *tree) : now(now), tree(tree) {}
 		};
 	public:
 		splay() : root(nullptr)
@@ -495,8 +506,11 @@ namespace sjtu
 	protected:
 		splay(node *root) : root(root)
 		{
-			root->parent = nullptr;
-			root->tree = this;
+			if (root)
+			{
+				root->parent = nullptr;
+				root->tree = this;
+			}
 		}
 		static void splay_node(node *o)
 		{
