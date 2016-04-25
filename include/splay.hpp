@@ -144,10 +144,10 @@ namespace sjtu
 			}
 		protected:
 			node *now;
-			const splay *tree;
+			splay *tree;
 
 		protected:
-			iterator(node *now, const splay *tree) : now(now), tree(tree) {}
+			iterator(node *now, splay *tree) : now(now), tree(tree) {}
 		};
 	public:
 		splay() : root(nullptr)
