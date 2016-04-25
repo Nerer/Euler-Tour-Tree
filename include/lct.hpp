@@ -2,11 +2,15 @@
 #define SJTU_LCT_HPP
 #include<functional>
 #include<map>
+#include<vector>
+#include"dynamic_tree.hpp"
 namespace sjtu
 {
+	class ett;
 	class lct
 	{
 	protected:
+		ett* com;
 		class node
 		{
 		public:
@@ -78,7 +82,7 @@ namespace sjtu
 		};
 		std::map<int,node*> mp;
 	public:
-		lct() :mp()
+		lct(ett* _com) :com(_com),mp()
 		{
 			mp[0] = nullptr;
 		}
@@ -141,6 +145,9 @@ namespace sjtu
 					v->fa = u;
 				}
 				u->ch[1] = v;
+				int x1 = u == nullptr ? 0 : u->id;
+				int x2 = v == nullptr ? 0 : v->id;
+				if (x1 && x2) com->tplink(x2, x1);
 				v = u;
 				u = mp[u->fa->id];
 			}
@@ -176,7 +183,6 @@ namespace sjtu
 			o->rev ^= 1;
 			return;
 		}
-		//把x连到y上
 		void link(node* x, node* y)
 		{
 			change_root(x);
@@ -188,7 +194,7 @@ namespace sjtu
 			x->fa = y;
 			return;
 		}
-		node* find(int x)
+		node* operator[](int x)
 		{
 			std::map<int,node*>::iterator iter;
 			iter = mp.find(x);
