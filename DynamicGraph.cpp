@@ -5,6 +5,7 @@
 #include <vector>
 using namespace std;
 
+template<typename Node>
 class Treap
 {
 public:
@@ -113,6 +114,7 @@ public:
 };
 
 
+
 class Forest
 {
 private:
@@ -121,7 +123,8 @@ private:
     vector<bool> EMark, VMark;
     int arc1(int ei) { return ei;}
     int arc2(int ei) { return ei + firstArc.size() - 1;}
-    
+   
+
     struct Node
     {
         Node *left, *right, *parent;
@@ -190,11 +193,15 @@ private:
                 t = t->parent;
             }
         }
-    }
+    };
     Node::Treap<Node> bst;
     vector<Node> nodes;
-    
-    void firstArcChanged(int v, int a, int b)
+    int getArc(Node *p) {
+        return p - &nodes[0];
+    }
+
+    typedef Node::Treap<Node> mTreap;
+    void firstArcChanged(int v, int a, int b) 
     {
     }
     
@@ -244,6 +251,47 @@ public:
         
         bst.join(bst.join(l, m), r);
     }
+
+    void cut(int which, int u, int v) {
+        if(u > v) {
+            swap(u, v);
+        }
+ 
+        int a1 = arc1(which), a2 = arc2(which);
+        pair<Node*, Node*> p = bst.split2(&nodes[a1]);
+        int rsize = mTreap::size(p.second);
+        pair<Node*, Node*> q = bst.split2(&nodes[a2]);
+
+
+        Node *l, *m, *r;
+        if(p.second == &nodes[a2] || mTreap::size(p.second) != rsize) { // 后继在右子树
+            l = p.first, m = q.first, r = q.second;
+        }else { //后继是父亲
+            swap(u, v);
+            swap(a1, a2);
+            l = q.first, m = q.second, r = p.second;
+        }
+ 
+        if(firstArc[u] == a1) {
+            int b;
+            if(r != NULL) {
+                b = getArc(Node::findHead(r));
+            }else {
+                b = (l == NULL ? -1 : getArc(Node::findHead(l)));
+            }
+            firstArc[u] = b;
+            firstArcChanged(u, a1, b);
+        }
+        if(firstArc[v] == a2) {
+            int b = (m == NULL ? -1 : getArc(Node::findHead(m)));
+            firstArc[v] = b;
+            firstArcChanged(v, a2, b);
+        }
+ 
+        bst.join(l, r);
+    }
+
+    
     bool connected(int u, int v)
     {
         if(u == v) return 1;
@@ -269,7 +317,7 @@ public:
             Node::updatePath(t);
         }
     }
-}
+};
 
 class DynamicConnectivity
 {
@@ -328,6 +376,35 @@ private:
             if(nx == -1) forests[lv].changeVMark(v, 1);
         }
     }
+
+    bool replace(int e, int u, int v) {
+
+    }
+
+    void deleteOrdinaryEdge(int e, int u, int v) {
+        int lv = level[e];
+        int t = arc1(e);
+        int next = nextE[t], prev = prevE[t];
+        nextE[t] = prevE[t] = -2;
+ 
+        if(next != -1) prevE[next] = prev;
+        if(prev != -1) nextE[prev] = next;
+        else firstE[lv][u] = next;
+ 
+        if(next == -1 && prev == -1)
+            forests[lv].changeVMark(v, false);
+
+        int t = arc2(e);
+        next = nextE[t], prevE[next] = prev;
+        nextE[t] = prevE[t] = -2;
+        if (next != -1) prevE[next] = prev;
+        if (prev != -1) nextE[prev] = next;
+        else firestE[lv][v] = next;
+
+        if (next == -1 && prev == -1) {
+            forests[lv].changeVMark(u, false);
+        }
+    }
 public:
     void init(int N, int tot)
     {
@@ -365,10 +442,32 @@ public:
         
         return treeEdge;
     }
-    bool deleteEdge(int ei)
-    {
+    bool deleteEdge(int e) {
+        int a1 = arc1(e), a2 = arc2(e);
+        int v = arcHead[a2], w = arcHead[a1]; 
+        int lv = level[e];
+        int which = treeEdgeIndex[e];
+ 
+        bool splitted = false;
+        if(which != -1) {
+            treeEdgeMap[which] = -1;
+            treeEdgeIndex[e] = -1;
+            freeList.push_back(which);
+            for(int i = 0; i <= lv; i ++)
+                forests[i].cut(which, v, w);
+ 
+            forests[lv].changeEMark(which, false);
+            splitted = !replace(lv, v, w);
+        }else {
+            if(v != w) {
+                deleteOrdinaryEdge(e, v, w);
+            }
+        }
+        arcHead[a1] = arcHead[a2] = -1;
+        level[ei] = -1;
+        return splitted;
     }
-}
+};
 
 int main()
 {
