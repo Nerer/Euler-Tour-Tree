@@ -22,7 +22,8 @@ namespace sjtu
 		}
 		void merge(const info & a, const info & b)
 		{
-			size = a.size + b.size+1;
+			size = a.size + b.size+on;
+			if (!on) num = 0;
 			sum = a.sum + b.sum + num;
 		}
 		void split(info & a, info & b)
@@ -258,71 +259,61 @@ namespace sjtu
 		}
 	public:
 		
-		splay<info> tpcut(int x)
+		splay<info>& tpcut(int x)
 		{
 			ptr pos1 = (*this)[x].first, pos2 = (*this)[x].second;
 			splay<info>* temp = pos1.get_splay();
-			splay<info> ret = temp->split(pos1, splay<info>::before);
-			splay<info> t = ret.split(pos2, splay<info>::after);
-			temp->merge(t);
-			return ret;
+			splay<info>* ret = new splay<info>(temp->split(pos1, splay<info>::before));
+			splay<info>* t = new splay<info>(ret->split(pos2, splay<info>::after));
+			temp->merge(*t);
+			return *ret;
 		}
 		splay<info>& tplink(int x, int y);
 	public:
-		void print(int x)
-		{
-			/*for (auto i : *first[x].get_splay())
-				std::cout << i.sum << " ";
-			std::cout << std::endl;*/
-			return;
-		}
-		splay<info> cut(int x)
+		splay<info>& cut(int x)
 		{
 			com->cut((*com)[x]);
-			splay<info>* temp;
-			ptr pos1 =(*this)[x].first, pos2 = (*this)[x].second;
+			/*ptr pos1 =(*this)[x].first, pos2 = (*this)[x].second;
+			splay<info>* temp = pos1.get_splay();
 			splay<info> ret = temp->split(pos1, splay<info>::before);
 			splay<info> t = ret.split(pos2, splay<info>::after);
-			temp->merge(t);
-			return ret;
+			temp->merge(t);*/
+			return tpcut(x);
 		}
 		splay<info>& link(int x, int y)
 		{
 			com->link((*com)[x], (*com)[y]);
-			splay<info> temp = tpcut(x);
+			/*splay<info> temp = tpcut(x);
 			ptr pos = (*this)[y].first;
 			first[y].get_splay()->merge(temp, pos, splay<info>::after);
-			print(x);
-			return *first[y].get_splay();
+			print(x);*/
+			return tplink(x,y)/**first[y].get_splay()*/;
 		}
 		void chain(int x, int d)
 		{
 			com->access((*com)[x]);
-			print(x);
 			ptr pos = (*this)[x].first;
 			splay<info>* p=pos.get_splay();
 			splay<info>* temp = new splay<info>(p->split(pos, splay<info>::after));
 			pos.access().add_lazy(d);
 			temp->merge(*p, temp->begin());
-			print(x);
 			return;
 		}
 		void subtree(int x, int d)
 		{
 			ptr pos1 = (*this)[x].first, pos2 = (*this)[x].second;
 			splay<info>* temp = pos1.get_splay();
-			splay<info> ret = temp->split(pos1, splay<info>::before);
-			splay<info> t = ret.split(pos2, splay<info>::after);
+			splay<info>* ret = new splay<info>(temp->split(pos1, splay<info>::before));
+			splay<info>* t = new splay<info>(ret->split(pos2, splay<info>::after));
 			pos2.get_splay();
 			pos2.access().add_lazy(d);
-			temp->merge(ret).merge(t);
+			temp->merge(*ret).merge(*t);
 			return;
 		}
 		int get_chain(int x)
 		{
 			int ret = 0;
 			com->access((*com)[x]);
-			print(x);
 			ptr pos = (*this)[x].first;
 			splay<info>* p = pos.get_splay();
 			splay<info>* temp = new splay<info>(p->split(pos, splay<info>::after));
@@ -345,7 +336,7 @@ namespace sjtu
 	};
 	splay<info>& ett::tplink(int x, int y)
 	{
-		splay<info> temp = tpcut(x);
+		splay<info> temp (std::move(tpcut(x)));
 		ptr pos = (*this)[y].first;
 		first[y].get_splay()->merge(temp, pos, splay<info>::after);
 		return *first[y].get_splay();
