@@ -82,9 +82,13 @@ namespace sjtu
 		};
 		std::map<int,node*> mp;
 	public:
-		lct(ett* _com) :com(_com),mp()
+		lct() :mp()
 		{
 			mp[0] = nullptr;
+		}
+		void combine(ett* _com)
+		{
+			com = _com;
 		}
 		~lct()
 		{

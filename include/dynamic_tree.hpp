@@ -7,13 +7,14 @@ namespace sjtu
 {
 	struct info
 	{
+		bool on;
 		int id;
 		int size;
 		int num;
 		int sum;
 		int lazy;
-		info() :id(0),size(0), sum(0), lazy(0), num(0) {}
-		info(int x):id(x),size(1),sum(0),lazy(0), num(0){}
+		info() :on(0),id(0),size(0), sum(0), lazy(0), num(0) {}
+		info(int x,bool _on):on(_on),id(x),size(_on),sum(0),lazy(0), num(0){}
 		void add_lazy(int delta)
 		{
 			lazy += delta;
@@ -111,9 +112,13 @@ namespace sjtu
 		};
 		std::map<int, node*> mp;
 	public:
-		lct(ett* _com) :com(_com), mp()
+		lct(): mp()
 		{
 			mp[0] = nullptr;
+		}
+		void combine(ett* _com)
+		{
+			com = _com;
 		}
 		~lct()
 		{
@@ -243,8 +248,8 @@ namespace sjtu
 			if (iter1 == first.end() && iter2 == second.end())
 			{
 				splay<info> *tr = new splay<info>();
-				tr->insert(info(x));
-				tr->insert(info(x));
+				tr->insert(info(x,1));
+				tr->insert(info(x,0));
 				first[x] = tr->begin();
 				second[x] = --tr->end();
 			}
@@ -297,7 +302,7 @@ namespace sjtu
 			ptr pos = (*this)[x].first;
 			splay<info>* p=pos.get_splay();
 			splay<info>* temp = new splay<info>(p->split(pos, splay<info>::after));
-			pos.access().add_lazy(2 * d);
+			pos.access().add_lazy(d);
 			temp->merge(*p, temp->begin());
 			print(x);
 			return;
@@ -309,7 +314,7 @@ namespace sjtu
 			splay<info> ret = temp->split(pos1, splay<info>::before);
 			splay<info> t = ret.split(pos2, splay<info>::after);
 			pos2.get_splay();
-			pos2.access().lazy += d;
+			pos2.access().add_lazy(d);
 			temp->merge(ret).merge(t);
 			return;
 		}
@@ -368,6 +373,45 @@ namespace sjtu
 		}
 		return;
 	}
+	class dynamic_tree
+	{
+		ett t1;
+		lct t2;
+	public:
+		dynamic_tree() :t1(), t2()
+		{
+			t1.combine(&t2);
+			t2.combine(&t1);
+		}
+		void link(int x, int y)
+		{
+			t1.link(x, y);
+		}
+		void cut(int x)
+		{
+			t1.cut(x);
+		}
+		void chain(int x,int d)
+		{
+			t1.chain(x,d);
+		}
+		void subtree(int x,int d)
+		{
+			t1.subtree(x, d);
+		}
+		int get_chain(int x)
+		{
+			return t1.get_chain(x);
+		}
+		int get_subtree(int x)
+		{
+			return t1.get_subtree(x);
+		}
+		int lca(int x, int y)
+		{
+			return t2.lca(t2[x], t2[y])->id;
+		}
+	};
 }
 
 
