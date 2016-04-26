@@ -2,7 +2,7 @@
 #define DIO
 #include"splay.hpp"
 #include<map>
-#include<iostream>
+#include"lct.hpp"
 namespace sjtu
 {
 	struct info
@@ -167,6 +167,18 @@ namespace sjtu
 	public:
 		void access(node* u);
 	public:
+		node* path_root(node *o)
+		{
+			o->splay();
+			o->pushdown();
+			while (o->ch[0])
+			{
+				o = o->ch[0];
+				o->pushdown();
+			}
+			o->splay();
+			return mp[o->id];
+		}
 		node* find_root(node* o)
 		{
 			access(o);
@@ -234,13 +246,16 @@ namespace sjtu
 	{
 		friend lct;
 		lct* com;
+		lctt* str;
 		std::map<int, ptr> first;
 		std::map<int, ptr> second;
+		int root;
 	public:
-		ett() :first(), second(),com(nullptr) {}
-		void combine(lct* _com)
+		ett(int x) :first(), second(),com(nullptr) ,root(x){}
+		void combine(lct* _com,lctt* _str)
 		{
 			com = _com;
+			str = _str;
 		}
 		std::pair<ptr, ptr> operator[](int x)
 		{
@@ -270,68 +285,127 @@ namespace sjtu
 		}
 		splay<info>& tplink(int x, int y);
 	public:
-		splay<info>& cut(int x)
+		/*splay<info>& cut(int x)
 		{
 			com->cut((*com)[x]);
-			/*ptr pos1 =(*this)[x].first, pos2 = (*this)[x].second;
+			ptr pos1 =(*this)[x].first, pos2 = (*this)[x].second;
 			splay<info>* temp = pos1.get_splay();
 			splay<info> ret = temp->split(pos1, splay<info>::before);
 			splay<info> t = ret.split(pos2, splay<info>::after);
-			temp->merge(t);*/
+			temp->merge(t);
 			return tpcut(x);
-		}
+		}*/
 		splay<info>& link(int x, int y)
 		{
 			com->link((*com)[x], (*com)[y]);
+			str->link((*str)[x], (*str)[y]);
 			/*splay<info> temp = tpcut(x);
 			ptr pos = (*this)[y].first;
 			first[y].get_splay()->merge(temp, pos, splay<info>::after);
 			print(x);*/
 			return tplink(x,y)/**first[y].get_splay()*/;
 		}
-		void chain(int x, int d)
+		int dlink(int x,int y, int d)
 		{
-			com->access((*com)[x]);
-			ptr pos = (*this)[x].first;
-			splay<info>* p=pos.get_splay();
-			splay<info>* temp = new splay<info>(p->split(pos, splay<info>::after));
-			pos.access().add_lazy(d);
-			temp->merge(*p, temp->begin());
+			int ret = 0;
+			//com->access((*com)[x]);
+			ptr pos1 = (*this)[x].first;
+			ptr pos2 = (*this)[y].first;
+			if (pos1.get_index() > pos2.get_index()) std::swap(pos1, pos2);
+			splay<info>* p=pos1.get_splay();
+			splay<info>* temp = new splay<info>(p->split(pos1, splay<info>::before));
+			splay<info>* t = new splay<info>(temp->split(pos2, splay<info>::after));
+			if(d) pos1.access().add_lazy(d);
+			else ret = pos1.access().sum;
+			p->merge(*temp).merge(*t);
+			return ret;
+		}
+		void chain(int x, int y,int d)
+		{
+			int l = com->lca((*com)[x], (*com)[y])->tid();
+			if (l == x) dlink(x, y, d);
+			else
+			{
+				dlink(l, y, d);
+				dlink(com->path_root((*com)[x])->tid(), x, d);
+			}
 			return;
 		}
-		void subtree(int x, int d)
+		void point(int x, int d)
 		{
+			ptr pos = (*this)[x].first;
+			pos.access().num += d;
+			return;
+		}
+		int get_point(int x)
+		{
+			ptr pos = (*this)[x].first;
+			return pos.access().num;
+		}
+		int zzk(int x, int d)
+		{
+			int p = 0;
 			ptr pos1 = (*this)[x].first, pos2 = (*this)[x].second;
 			splay<info>* temp = pos1.get_splay();
 			splay<info>* ret = new splay<info>(temp->split(pos1, splay<info>::before));
 			splay<info>* t = new splay<info>(ret->split(pos2, splay<info>::after));
 			pos2.get_splay();
-			pos2.access().add_lazy(d);
+			if(d) pos2.access().add_lazy(d);
+			else p = pos2.access().sum;
 			temp->merge(*ret).merge(*t);
+			return p;
+		}
+		void subtree(int x, int d)
+		{
+			int l = com->lca((*com)[root],(*com)[x])->tid();
+			int y = (*this)[x].first.get_splay()->begin().access().id;
+			if (x == root)
+				zzk(y, d);
+			else
+			if (l != x)
+				zzk(x, d);
+			else
+			{
+				int t = com->path_root((*com)[root])->tid();
+				zzk(y, d);
+				zzk(t, -d);
+			}
 			return;
 		}
-		int get_chain(int x)
+		int get_chain(int x,int y)
 		{
 			int ret = 0;
-			com->access((*com)[x]);
-			ptr pos = (*this)[x].first;
-			splay<info>* p = pos.get_splay();
-			splay<info>* temp = new splay<info>(p->split(pos, splay<info>::after));
-			ret = pos.access().sum;
-			temp->merge(*p, temp->begin());
+			int l = com->lca((*com)[x], (*com)[y])->tid();
+			if (l == x) ret=dlink(x, y, 0);
+			else
+			{
+				ret=dlink(l, y, 0);
+				ret+=dlink(com->path_root((*com)[x])->tid(), x, 0);
+			}
 			return ret;
 		}
 		int get_subtree(int x)
 		{
-			int rett = 0;
-			ptr pos1 = (*this)[x].first, pos2 = (*this)[x].second;
-			splay<info>* temp = pos1.get_splay();
-			splay<info> ret = temp->split(pos1, splay<info>::before);
-			splay<info> t = ret.split(pos2, splay<info>::after);
-			pos2.get_splay();
-			rett= pos2.access().sum;
-			temp->merge(ret).merge(t);
-			return rett;
+			int ret = 0;
+			int l = com->lca((*com)[root], (*com)[x])->tid();
+			int y = (*this)[x].first.get_splay()->begin().access().id;
+			if (x == root)
+				ret = zzk(y, 0);
+			else
+			if (l != x)
+				ret=zzk(x, 0);
+			else
+			{
+				int t = com->path_root((*com)[root])->tid();
+				ret=zzk(y, 0);
+				ret-=zzk(t, 0);
+			}
+			return ret;
+		}
+		void change_root(int x)
+		{
+			str->change_root((*str)[x]);
+			root = x;
 		}
 	};
 	splay<info>& ett::tplink(int x, int y)
@@ -368,39 +442,41 @@ namespace sjtu
 	{
 		ett t1;
 		lct t2;
+		lctt t3;
 	public:
-		dynamic_tree() :t1(), t2()
+		dynamic_tree(int x) :t1(x), t2()
 		{
-			t1.combine(&t2);
+			t1.combine(&t2,&t3);
 			t2.combine(&t1);
 		}
+		//将x父亲换为y，没有删边操作
 		void link(int x, int y)
 		{
 			t1.link(x, y);
 		}
-		void cut(int x)
+		void chain(int x,int y,int d)
 		{
-			t1.cut(x);
-		}
-		void chain(int x,int d)
-		{
-			t1.chain(x,d);
+			t1.chain(x,y,d);
 		}
 		void subtree(int x,int d)
 		{
 			t1.subtree(x, d);
 		}
-		int get_chain(int x)
+		int get_chain(int x,int y)
 		{
-			return t1.get_chain(x);
+			return t1.get_chain(x,y);
 		}
 		int get_subtree(int x)
 		{
 			return t1.get_subtree(x);
 		}
+		void change_root(int x)
+		{
+			t1.change_root(x);
+		}
 		int lca(int x, int y)
 		{
-			return t2.lca(t2[x], t2[y])->id;
+			return t3.lca(t3[x], t3[y])->id;
 		}
 	};
 }
