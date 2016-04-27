@@ -3,6 +3,7 @@
 #include"splay.hpp"
 #include<map>
 #include"lct.hpp"
+#include<iostream>
 namespace sjtu
 {
 	struct info
@@ -208,17 +209,7 @@ namespace sjtu
 			o->rev ^= 1;
 			return;
 		}
-		void link(node* x, node* y)
-		{
-			change_root(x);
-			access(y);
-			y->splay();
-			y->pushdown();
-			y->ch[1] = x;
-			if (x->fa->on) delete x->fa;
-			x->fa = y;
-			return;
-		}
+		void link(node* x, node* y);
 		node* operator[](int x)
 		{
 			std::map<int, node*>::iterator iter;
@@ -234,11 +225,12 @@ namespace sjtu
 		}
 		node* lca(node* x, node* y)
 		{
+			if (find_root(x) != find_root(y)) return nullptr;
 			access(x);
 			access(y);
 			x->splay();
 			if (x->fa->id) return mp[x->fa->id];
-			else return x;
+			return x;
 		}
 	};
 	typedef splay<info>::iterator ptr;
@@ -273,7 +265,13 @@ namespace sjtu
 			return std::pair<ptr, ptr>(iter1->second, iter2->second);
 		}
 	public:
-		
+		void print(splay<info>* tr)
+		{
+			for (auto i : *tr)
+				std::cout << i.id << " ";
+			std::cout << std::endl;
+			return;
+		}
 		splay<info>& tpcut(int x)
 		{
 			ptr pos1 = (*this)[x].first, pos2 = (*this)[x].second;
@@ -283,7 +281,7 @@ namespace sjtu
 			temp->merge(*t);
 			return *ret;
 		}
-		splay<info>& tplink(int x, int y);
+		splay<info>& tplink(int x, int y,int f);
 	public:
 		/*splay<info>& cut(int x)
 		{
@@ -297,13 +295,28 @@ namespace sjtu
 		}*/
 		splay<info>& link(int x, int y)
 		{
-			com->link((*com)[x], (*com)[y]);
-			str->link((*str)[x], (*str)[y]);
-			/*splay<info> temp = tpcut(x);
-			ptr pos = (*this)[y].first;
-			first[y].get_splay()->merge(temp, pos, splay<info>::after);
-			print(x);*/
-			return tplink(x,y)/**first[y].get_splay()*/;
+			int l=com->lca((*com)[root], (*com)[x])?com->lca((*com)[root], (*com)[x])->tid():0;
+			int r = (*this)[x].first.get_splay()->begin().access().id;
+			if (x == root) throw"nishabia";
+			else
+				if (l != x)
+				{
+					splay<info> *ret = new splay<info>(std::move(tplink(x, y, 0)));
+					com->link((*com)[x], (*com)[y]);
+					str->link((*str)[x], (*str)[y]);
+					return *ret;
+				}
+				else
+				{
+					int t = com->path_root((*com)[root])->tid();
+					com->change_root((*com)[t]);
+					splay<info> *ret = new splay<info>(std::move(tplink(x, y, t)));
+					root = t;
+					tplink(x, y, 0);
+					com->link((*com)[x], (*com)[y]);
+					str->link((*str)[x], (*str)[y]);
+					return *ret;
+				}
 		}
 		int dlink(int x,int y, int d)
 		{
@@ -322,6 +335,8 @@ namespace sjtu
 		}
 		void chain(int x, int y,int d)
 		{
+			str->access((*str)[x]);
+			str->access((*str)[y]);
 			int l = com->lca((*com)[x], (*com)[y])->tid();
 			if (l == x) dlink(x, y, d);
 			else
@@ -375,6 +390,8 @@ namespace sjtu
 		int get_chain(int x,int y)
 		{
 			int ret = 0;
+			str->access((*str)[x]);
+			str->access((*str)[y]);
 			int l = com->lca((*com)[x], (*com)[y])->tid();
 			if (l == x) ret=dlink(x, y, 0);
 			else
@@ -407,13 +424,29 @@ namespace sjtu
 			str->change_root((*str)[x]);
 			root = x;
 		}
+		void pt()
+		{
+			print((*this)[root].first.get_splay());
+		}
 	};
-	splay<info>& ett::tplink(int x, int y)
+	splay<info>& ett::tplink(int x, int y,int f)
 	{
-		splay<info> temp (std::move(tpcut(x)));
-		ptr pos = (*this)[y].first;
-		first[y].get_splay()->merge(temp, pos, splay<info>::after);
-		return *first[y].get_splay();
+		
+		if (!f)
+		{
+			splay<info> temp(std::move(tpcut(x)));
+			ptr pos = (*this)[y].first;
+			pos.get_splay()->merge(temp, pos, splay<info>::after);
+			return *pos.get_splay();
+		}
+		else
+		{
+			splay<info> temp(std::move(tpcut(f)));
+			ptr pos = (*this)[f].first;
+			ptr p = (*this)[x].first;
+			temp.merge(*p.get_splay(), pos, splay<info>::after);
+			return *new splay<info>(std::move(temp));
+		}
 	}
 	void lct::access(node* u)
 	{
@@ -430,12 +463,23 @@ namespace sjtu
 				v->fa = u;
 			}
 			u->ch[1] = v;
-			int x1 = u == nullptr ? 0 : u->id;
+			int x1 = u == nullptr ? 0 : path_root(u)->id;
 			int x2 = v == nullptr ? 0 : v->id;
-			if (x1 && x2) com->tplink(x2, x1);
+			if (x1 && x2) com->tplink(x2, x1,0);
 			v = u;
 			u = mp[u->fa->id];
 		}
+		return;
+	}
+	void lct::link(node* x, node* y)
+	{
+		//change_root(x);
+		access(y);
+		y->splay();
+		y->pushdown();
+		y->ch[1] = x;
+		if (!x->fa->on) delete x->fa;
+		x->fa = y;
 		return;
 	}
 	class dynamic_tree
@@ -477,6 +521,10 @@ namespace sjtu
 		int lca(int x, int y)
 		{
 			return t3.lca(t3[x], t3[y])->id;
+		}
+		void print()
+		{
+			t1.pt();
 		}
 	};
 }

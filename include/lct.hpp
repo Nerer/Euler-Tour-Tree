@@ -178,12 +178,12 @@ namespace sjtu
 		}
 		void link(node* x, node* y)
 		{
-			change_root(x);
+			//change_root(x);
 			access(y);
 			y->splay();
 			y->pushdown();
 			y->ch[1] = x;
-			if (x->fa->on) delete x->fa;
+			if (!x->fa->on) delete x->fa;
 			x->fa = y;
 			return;
 		}
@@ -202,6 +202,7 @@ namespace sjtu
 		}
 		node* lca(node* x, node* y)
 		{
+			if (find_root(x) != find_root(y)) return nullptr;
 			access(x);
 			access(y);
 			x->splay();
