@@ -5,7 +5,114 @@
 #include <vector>
 using namespace std;
 
-class SplayTree{};
+template<typename Node>
+class Treap
+{
+public:
+    Node *join(Node *l, Node *r)
+    {
+        if(!l) return r;
+        if(!r) return l;
+        Node *t = NULL;
+        
+        int h;
+        long long num = 0;
+        for(h = 0; ; ++h)
+        {
+            if(h >= sizeof(num) * 8 - 2)//QAQAQ
+            {
+                t = join(l->right, r->left);
+                num = num << 2 | 1;
+                ++h;
+                break;
+            }
+            num <<= 1;
+            if(l->priority < r->prioirity)
+            {
+                Node *tmp = l->right;
+                if(!tmp)
+                {
+                    t = r;
+                    r = r->parent;
+                    break;
+                }
+                l = tmp;
+            }
+            else
+            {
+                Node *tmp = r->left;
+                if(!tmp)
+                {
+                    t = l;
+                    l = l->parent;
+                    break;
+                }
+                r = tmp;
+                num |= 1;
+            }
+        }
+        for(; h >= 0; --h)
+        {
+            if(!(num & 1))
+            {
+                Node *p = l->parent;
+                t = l->linkr(t);
+                l = p;
+            }
+            else
+            {
+                Node *p = r->parent;
+                t = r->linkl(t);
+                r = p;
+            }
+            num >>= 1;
+        }
+        
+        return t;
+    }
+    //cut the line between t->left and t
+    pair<Node*, Node*> split(Node* t)
+    {
+        Node *p;
+        Node *l = t->left;
+        Node *r = t;
+        Node::cut(l);
+        t->linkl(NULL);
+        while(t->parent)
+        {
+            p = t->parent;
+            t->parent = NULL;
+            if(p->left == t) r = p->linkl(r);
+            else l = p->linkr(l);
+            t = p;
+        }
+        return pair(l, r);
+    }
+    Node* comb(Node* h, Node* t)
+    {
+        if(!t) return h;
+        Node* tmp = NULL;
+        while(1)
+        {
+            if(h->priority < t->priority)
+            {
+                Node* p = t->parent;
+                tmp = h->linkr(t);
+                t = p;
+                break;
+            }
+            Node* l = t->left;
+            if(!l) {tmp = h; break;}
+            t = l;
+        }
+        while(t)
+        {
+            tmp = t->linkl(tmp); t = t->parent;
+        }
+        return tmp;
+    }
+};
+
 
 
 class Forest
@@ -16,7 +123,8 @@ private:
     vector<bool> EMark, VMark;
     int arc1(int ei) { return ei;}
     int arc2(int ei) { return ei + firstArc.size() - 1;}
-    
+   
+
     struct Node
     {
         Node *left, *right, *parent;
@@ -48,12 +156,19 @@ private:
         }
         Node *linkl(Node *c)
         {
+            if(c) left = c, c->parent = this;
+            return update();
         }
         Node *linkr(Node *c)
         {
+            if(c) right = c, c->parent = this;
+            return update();
         }
         Node *linklr(Node *l, Node *r)
         {
+            if(l) left = l, l->parent = this;
+            if(r) right = r, r->parent = this;
+            return update();
         }
         Node *cut(Node *t)
         {
@@ -78,9 +193,17 @@ private:
                 t = t->parent;
             }
         }
-    }
-    Node::SplayTree<Node> bst;
+    };
+    Node::Treap<Node> bst;
     vector<Node> nodes;
+    int getArc(Node *p) {
+        return p - &nodes[0];
+    }
+
+    typedef Node::Treap<Node> mTreap;
+    void firstArcChanged(int v, int a, int b) 
+    {
+    }
     
 public:
     void init(int N)
@@ -89,13 +212,86 @@ public:
         firstArc.assign(N, -1);
         
         nodes.assign(M * 2, Node());
-        for(int i = 0; i < M * 2; ++i) nodes[i].priority = bst.nextRand();//QAQAQ
+        for(int i = 0; i < M * 2; ++i) nodes[i].priority = rand();
         EMark.assign(M, 0);
         VMark.assign(N, 0);
     }
     void link(int ti, int u, int v)
     {
+        int a1 = arc1(ti), a2 = arc2(ti);
+        if(u > v) swap(a1, a2);
+        int uu = firstArc[u], vv = firstArc[v];
+        
+        Node *l, *m, *r;
+        if(uu != -1)
+        {
+            pair<Node*, Node*> p = bst.split(&node[uu]);
+            m = bst.join(p.second, p.first);
+        }
+        else
+        {
+            m = NULL;
+            firstArc[u] = a1;
+            firstArcChanged(u, -1, a1);
+        }
+        if(vv != -1)
+        {
+            pair<Node*, Node*> p = bst.split(&node[vv]);
+            l = p.first, r = p.second;
+        }
+        else
+        {
+            l = r = NULL;
+            firstArc[v] = a2;
+            firstArcChanged(v, -1, a2);
+        }
+        
+        m = bst.comb(&nodes[a2], m);
+        r = bst.comb(&nodes[a1], r);
+        
+        bst.join(bst.join(l, m), r);
     }
+
+    void cut(int which, int u, int v) {
+        if(u > v) {
+            swap(u, v);
+        }
+ 
+        int a1 = arc1(which), a2 = arc2(which);
+        pair<Node*, Node*> p = bst.split2(&nodes[a1]);
+        int rsize = mTreap::size(p.second);
+        pair<Node*, Node*> q = bst.split2(&nodes[a2]);
+
+
+        Node *l, *m, *r;
+        if(p.second == &nodes[a2] || mTreap::size(p.second) != rsize) { // 后继在右子树
+            l = p.first, m = q.first, r = q.second;
+        }else { //后继是父亲
+            swap(u, v);
+            swap(a1, a2);
+            l = q.first, m = q.second, r = p.second;
+        }
+ 
+        if(firstArc[u] == a1) {
+            int b;
+            if(r != NULL) {
+                b = getArc(Node::findHead(r));
+            }else {
+                b = (l == NULL ? -1 : getArc(Node::findHead(l)));
+            }
+            firstArc[u] = b;
+            firstArcChanged(u, a1, b);
+        }
+        if(firstArc[v] == a2) {
+            int b = (m == NULL ? -1 : getArc(Node::findHead(m)));
+            firstArc[v] = b;
+            firstArcChanged(v, a2, b);
+        }
+ 
+        bst.join(l, r);
+    }
+
+    
     bool connected(int u, int v)
     {
         if(u == v) return 1;
@@ -121,7 +317,7 @@ public:
             Node::updatePath(t);
         }
     }
-}
+};
 
 class DynamicConnectivity
 {
@@ -180,6 +376,35 @@ private:
             if(nx == -1) forests[lv].changeVMark(v, 1);
         }
     }
+
+    bool replace(int e, int u, int v) {
+
+    }
+
+    void deleteOrdinaryEdge(int e, int u, int v) {
+        int lv = level[e];
+        int t = arc1(e);
+        int next = nextE[t], prev = prevE[t];
+        nextE[t] = prevE[t] = -2;
+ 
+        if(next != -1) prevE[next] = prev;
+        if(prev != -1) nextE[prev] = next;
+        else firstE[lv][u] = next;
+ 
+        if(next == -1 && prev == -1)
+            forests[lv].changeVMark(v, false);
+
+        int t = arc2(e);
+        next = nextE[t], prevE[next] = prev;
+        nextE[t] = prevE[t] = -2;
+        if (next != -1) prevE[next] = prev;
+        if (prev != -1) nextE[prev] = next;
+        else firestE[lv][v] = next;
+
+        if (next == -1 && prev == -1) {
+            forests[lv].changeVMark(u, false);
+        }
+    }
 public:
     void init(int N, int tot)
     {
@@ -217,13 +442,37 @@ public:
         
         return treeEdge;
     }
-    bool deleteEdge(int ei)
-    {
+    bool deleteEdge(int e) {
+        int a1 = arc1(e), a2 = arc2(e);
+        int v = arcHead[a2], w = arcHead[a1]; 
+        int lv = level[e];
+        int which = treeEdgeIndex[e];
+ 
+        bool splitted = false;
+        if(which != -1) {
+            treeEdgeMap[which] = -1;
+            treeEdgeIndex[e] = -1;
+            freeList.push_back(which);
+            for(int i = 0; i <= lv; i ++)
+                forests[i].cut(which, v, w);
+ 
+            forests[lv].changeEMark(which, false);
+            splitted = !replace(lv, v, w);
+        }else {
+            if(v != w) {
+                deleteOrdinaryEdge(e, v, w);
+            }
+        }
+        arcHead[a1] = arcHead[a2] = -1;
+        level[ei] = -1;
+        return splitted;
     }
-}
+};
 
 int main()
 {
+    srand(time(0));
+    
     int N, M;
     scanf("%d%d", &N, &M);
     
