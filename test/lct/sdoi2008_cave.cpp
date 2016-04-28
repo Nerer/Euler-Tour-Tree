@@ -15,12 +15,14 @@ struct point_info
 	void merge(const point_info &a, const point_info &b) {}
 };
 
-LCT<point_info> lct;
-LCT<point_info>::point pt[MAXN+1];
+LCT<point_info, int> lct;
+LCT<point_info, int>::point pt[MAXN+1];
 int N, M;
 
 int main()
 {
+	freopen("cave.in", "r", stdin);
+	freopen("cave.out", "w", stdout);
 	scanf("%d %d", &N, &M);
 	for (int i = 1; i <= N; i++)
 		pt[i] = lct.insert(point_info(i));
@@ -35,7 +37,7 @@ int main()
 		}
 		else if (op[0] == 'C')
 		{
-			lct.link(pt[u], pt[v]);
+			lct.link(pt[u], pt[v], 0);
 		}
 		else if (op[0] == 'D')
 		{

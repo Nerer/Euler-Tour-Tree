@@ -5,6 +5,9 @@
 #include <cassert>
 #include <utility>
 #include <functional>
+#include <unordered_set>
+
+#include <iostream>
 
 namespace sjtu
 {
@@ -18,12 +21,22 @@ namespace sjtu
 	{
 	protected:
 		struct node;
+		typedef splay<node, ETT *> ett_splay;
 	public:
-		class edge : protected splay<node>::iterator
+		class edge : protected ett_splay::iterator
 		{
 			friend class ETT;
 		public:
 			edge() = default;
+
+			ETT * get_ett()
+			{
+				return iterator::get_splay()->mdata;
+			}
+			bool is_accessible()
+			{
+				return iterator::is_accessible();
+			}
 			edge_info & operator*()
 			{
 				if (!access().key_edge)
@@ -38,19 +51,32 @@ namespace sjtu
 			}
 
 		protected:
-			edge(splay<node>::iterator &iter) : iterator(iter) {}
+			edge(typename ett_splay::iterator &iter) : iterator(iter) {}
 		};
 
-		ETT() = default;
+		ETT()
+		{
+			etour.mdata = this;
+		}
 		ETT(const ETT &) = delete;
-		ETT(ETT &&) = default;
+		ETT(ETT &&other) : etour(std::move(other.etour))
+		{
+			etour.mdata = this;
+		}
+
+		~ETT()
+		{
+			std::cout << "~ETT " << (void *)this << std::endl;
+		}
 
 		edge root()
 		{
-			return edge(etour.end());
+			return etour.end();
 		}
 		edge insert(const edge_info &einfo, edge pos)
 		{
+			check_iter(pos);
+
 			if (pos.access().iter.get_index() > pos.get_index())
 				pos = pos.access().iter;
 			auto iter1 = etour.insert(node(einfo), pos);
@@ -59,94 +85,269 @@ namespace sjtu
 			iter2->iter = iter1;
 			return iter1;
 		}
-		ETT & link(const edge_info &einfo, edge pos, ETT &other)
+		edge link(const edge_info &einfo, edge pos, ETT &other)
 		{
-			if (pos.access().iter.get_index() > pos.get_index())
+			check_iter(pos);
+
+			if (pos != root() && pos.access().iter.get_index() > pos.get_index())
 				pos = pos.access().iter;
-			etour.insert(node(einfo), pos);
+			auto ret = etour.insert(node(einfo), pos);
 			etour.merge(other.etour, pos);
-			etour.insert(node(), pos);
-			return *this;
+			ret->iter = etour.insert(node(), pos);
+			ret->iter->iter = ret;
+			return ret;
 		}
 		ETT cut(edge pos)
 		{
-			if (pos == etour.end())
+			check_iter(pos);
+
+			if (pos == root())
 			{
 				ETT ret(etour);
 				etour.clear();
 				return ret;
 			}
-			splay<node>::iterator iter_l, iter_r;
+			typename ett_splay::iterator iter_l, iter_r;
 			get_iter(pos, iter_l, iter_r);
 			auto tmp1 = etour.split(iter_l);
-			auto tmp2 = tmp1.split(iter_r, splay<node>::after);
+			auto tmp2 = tmp1.split(iter_r, ett_splay::after);
 			etour.merge(tmp2);
+			
+			assert(!tmp1.empty());
+			tmp1.remove(tmp1.begin());
+			tmp1.remove(--tmp1.end());
 			return ETT(tmp1);
 		}
-		ETT & modify_subtree(edge pos, std::function<void(edge_info &)> funcModify)
+		void modify_subtree(edge pos, std::function<void(edge_info &)> funcModify)
 		{
-			splay<node>::iterator iter_l, iter_r;
-			if (pos == etour.end())
-				iter_l = etour.begin(), iter_r = --etour.end();
+			check_iter(pos);
+
+			typename ett_splay::iterator iter_l, iter_r;
+			if (pos == root())
+				iter_l = etour.begin(), iter_r = --root();
 			else
 			{
 				get_iter(pos, iter_l, iter_r);
 				++iter_l;
 				--iter_r;
 			}
-			auto tmp1 = etour.split(iter_l);
-			auto tmp2 = tmp1.split(iter_r, splay<node>::after);
-			funcModify(tmp1.begin()->info);
-			etour.merge(tmp1).merge(tmp2);
+			modify_range(iter_l, iter_r, funcModify);
 		}
 		edge_info query_subtree(edge pos)
 		{
-			splay<node>::iterator iter_l, iter_r;
-			if (pos == etour.end())
-				iter_l = etour.begin(), iter_r = --etour.end();
+			check_iter(pos);
+
+			typename ett_splay::iterator iter_l, iter_r;
+			if (pos == root())
+				iter_l = etour.begin(), iter_r = --root();
 			else
 			{
 				get_iter(pos, iter_l, iter_r);
 				++iter_l;
 				--iter_r;
 			}
-			auto tmp1 = etour.split(iter_l);
-			auto tmp2 = tmp1.split(iter_r, splay<node>::after);
-			edge_info ret = tmp1.begin()->info;
-			etour.merge(tmp1).merge(tmp2);
-			return ret;
+			return query_range(iter_l, iter_r);
 		}
-		ETT & evert(edge pos)
+		void evert(edge pos)
 		{
-			if (pos == etour.end())
-				return *this;
-			splay<node>::iterator iter_l, iter_r;
+			check_iter(pos);
+
+			if (pos == root())
+				return;
+			typename ett_splay::iterator iter_l, iter_r;
 			get_iter(pos, iter_l, iter_r);
 			auto tmp1 = etour.split(iter_r);
 			etour.merge(tmp1, etour.begin());
-			return *this;
+		}
+
+		void reverse(edge pos)
+		{
+			check_iter(pos);
+
+			if (pos == root())
+			{
+				etour.reverse();
+				return;
+			}
+			typename ett_splay::iterator iter_l, iter_r;
+			get_iter(pos, iter_l, iter_r);
+			auto tmp1 = etour.split(iter_r, ett_splay::after);
+			auto tmp2 = etour.split(iter_l);
+			tmp2.reverse();
+			etour.merge(tmp2).merge(tmp1);
+		}
+		void reverse_subtree(edge pos, bool flag)
+		{
+			check_iter(pos);
+
+			std::cout << "BeforeREV-ST: ";
+			dump();
+
+			typename ett_splay::iterator l, r;
+			if (flag)
+			{
+				if (pos == root())
+				{
+					if (etour.size() <= 2)
+						return;
+					l = etour.begin().access().iter, r = --root();
+					++l;
+					if (l == r || l == root())
+						return;
+				}
+				else
+				{
+					get_iter(pos, l, r);
+					++l;
+					if (l == r)
+						return;
+					l = l.access().iter;
+					++l;
+					if (l == r)
+						return;
+					--r;
+				}
+			}
+			else
+			{
+				if (pos == root())
+				{
+					if (etour.size() <= 2)
+						return;
+					l = etour.begin(), r = --root();
+				}
+				else
+				{
+					get_iter(pos, l, r);
+					++l;
+					if (l == r)
+						return;
+					--r;
+				}
+				std::cout << "FLAG FALSE!" << std::endl;
+			}
+
+			dump();
+			std::cout << "REV-ST: L(" << l.get_index() << ") R(" << r.get_index() << ") ";
+
+			auto tmp1 = etour.split(r, ett_splay::after);
+			auto tmp2 = etour.split(l);
+			tmp2.reverse();
+			dump();
+			etour.merge(tmp2).merge(tmp1);
+
+			dump();
+		}
+		void modify_range(edge l, edge r, std::function<void(edge_info &)> funcModify)
+		{
+			if (l == root())
+				l = etour.begin();
+			auto tmp1 = etour.split(r, ett_splay::after);
+			auto tmp2 = etour.split(l);
+			funcModify(tmp2.begin()->info);
+			etour.merge(tmp2).merge(tmp1);
+		}
+		edge_info query_range(edge l, edge r)
+		{
+			if (l == root())
+				l = etour.begin();
+			auto tmp1 = etour.split(r, ett_splay::after);
+			auto tmp2 = etour.split(l);
+			edge_info ret = tmp2.begin()->info;
+			etour.merge(tmp2).merge(tmp1);
+			return ret;
+		}
+		void prefer_child(edge o, edge parent)
+		{
+			check_iter(o);
+			check_iter(parent);
+
+			if (o == root())
+				throw std::runtime_error("Cannot set root as preferred child");
+			typename ett_splay::iterator l, r, pl, pr;
+			get_iter(o, l, r);
+
+			std::cout << "PREFER CHILD: ";
+			dump();
+
+			if (parent == root())
+			{
+				auto tmp1 = etour.split(r, ett_splay::after);
+				auto tmp2 = etour.split(l);
+				etour.merge(tmp1);
+				etour.merge(tmp2, etour.begin());
+			}
+			else
+			{
+				get_iter(parent, pl, pr);
+				
+				std::cout << "PREFER CHILD PL(" << pl.get_index() << ") PR(" << pr.get_index() <<
+					") L(" << l.get_index() << ") R(" << r.get_index() << ")" << std::endl;
+				std::cout << ">>> O(" << o.get_index() << ") PARENT(" << parent.get_index() << ")" << std::endl;
+				std::cout << ">>> O-ITER(" << o.access().iter.get_index() << std::endl;
+
+				if (l.get_index() <= pl.get_index())
+					throw std::runtime_error("o is not a child of parent");
+				auto tmp1 = etour.split(r, ett_splay::after);
+				auto tmp2 = etour.split(l);
+				etour.merge(tmp1);
+				etour.merge(tmp2, pl, ett_splay::after);
+			}
+		}
+
+		bool empty() const
+		{
+			return etour.empty();
+		}
+
+		void dump()
+		{
+			dump(etour);
+		}
+		void dump(typename ett_splay &ett)
+		{
+			for (auto i = ett.begin(); i != ett.end();++i)
+			{
+				check_iter(i);
+
+				i->info.metadata.dump();
+				std::cout << "[";
+				i->iter->info.metadata.dump();
+				std::cout << "] ";
+			}
+			std::cout << std::endl;
 		}
 	protected:
-		ETT(splay<node> &et) : etour(std::move(et)) {}
+		ETT(typename ett_splay &et) : etour(std::move(et))
+		{
+			etour.mdata = this;
+		}
 		struct node
 		{
-			splay<node>::iterator iter;
+			ETT *ett;
+			typename ett_splay::iterator iter;
 			edge_info info;
 			bool key_edge;
 			node() : key_edge(false) {}
 			node(const edge_info &einfo, bool key = true) : info(einfo), key_edge(key) {}
+			explicit node(ETT *ett) : ett(ett) {}
 			void split(node &a, node &b) { info.split(a.info, b.info); }
 			void merge(const node &a, const node &b) { info.merge(a.info, b.info); }
 		};
-		splay<node> etour;
+		ett_splay etour;
 
 	protected:
-		static void get_iter(edge pos, splay<node>::iterator &iter_l, splay<node>::iterator &iter_r)
+		static void get_iter(edge pos, typename ett_splay::iterator &iter_l, typename ett_splay::iterator &iter_r)
 		{
 			if (pos.access().iter.get_index() > pos.get_index())
 				iter_l = pos, iter_r = pos.access().iter;
 			else
 				iter_l = pos.access().iter, iter_r = pos;
+		}
+
+		void check_iter(typename ett_splay::iterator i)
+		{
+			assert(i == root() || i.access().iter->iter == i);
 		}
 	};
 }

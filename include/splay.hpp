@@ -28,8 +28,17 @@ namespace sjtu
 	 *			};
 	 *			splay<info> var;
 	 **/
-	template<typename node_info>
-	class splay
+
+	template<typename T>
+	struct splay_metadata
+	{
+		T mdata;
+	};
+	template<>
+	struct splay_metadata<void> { };
+
+	template<typename node_info, typename metadata = void>
+	class splay : public splay_metadata<metadata>
 	{
 	protected:
 		struct node;
@@ -53,11 +62,13 @@ namespace sjtu
 
 			bool is_accessible() const 
 			{
-				return now;
+				return now != nullptr;
 			}
 
-			splay<node_info> * get_splay()
+			splay * get_splay()
 			{
+				if (!now)
+					return tree;
 				splay_node(now);
 				return tree = now->tree;
 			}
@@ -156,7 +167,8 @@ namespace sjtu
 		splay(splay &&other)
 		{
 			root = other.root;
-			root->tree = this;
+			if(root)
+				root->tree = this;
 			other.root = nullptr;
 		}
 		splay(const splay &other) = delete;
@@ -171,7 +183,8 @@ namespace sjtu
 				return *this;
 			clear();
 			root = other.root;
-			root->tree = this;
+			if(root)
+				root->tree = this;
 			other.root = nullptr;
 			return *this;
 		}
@@ -260,7 +273,7 @@ namespace sjtu
 		splay & remove(iterator iter)
 		{
 			splay tmp = split(iter);
-			merge(tmp.split(tmp.begin, after));
+			merge(tmp.split(tmp.begin(), after));
 			return *this;
 		}
 		iterator insert(const node_info &info)
@@ -330,6 +343,7 @@ namespace sjtu
 				throw std::out_of_range("Element doesn't Exist");
 			return o->info;
 		}
+
 	protected:
 		struct node
 		{
