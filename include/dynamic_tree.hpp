@@ -526,6 +526,10 @@ namespace sjtu
 		{
 			t1.pt();
 		}
+		int find_root(int x)
+		{
+			return t3.find_root(t3[x])->id;
+		}
 	};
 }
 
