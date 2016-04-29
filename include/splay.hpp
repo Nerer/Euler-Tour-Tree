@@ -130,6 +130,7 @@ namespace sjtu
 					while (o->pushdown(), o->rchild)
 						o = o->rchild;
 					now = o;
+					splay_node(o);
 					return *this;
 				}
 				splay_node(now);
@@ -202,6 +203,7 @@ namespace sjtu
 			node *o = root;
 			while (o->pushdown(), o->lchild)
 				o = o->lchild;
+			splay_node(o);
 			return iterator(o, this);
 		}
 		iterator end()
@@ -243,7 +245,7 @@ namespace sjtu
 				iter.access();
 			else
 				return splay();
-			if (iter.tree != this)
+			if (iter.get_splay() != this)
 				throw std::runtime_error("Invalid Iterator");
 			root->pushdown();
 			if (pos == before)

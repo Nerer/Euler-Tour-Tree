@@ -50,6 +50,20 @@ namespace sjtu
 				return &(*(*this));
 			}
 
+			bool operator==(const edge &other) const
+			{
+				return iterator::operator==(other);
+			}
+			bool operator!=(const edge &other) const
+			{
+				return iterator::operator!=(other);
+			}
+
+			void * pnow() const
+			{
+				return now;
+			}
+
 		protected:
 			edge(typename ett_splay::iterator &iter) : iterator(iter) {}
 		};
@@ -66,7 +80,7 @@ namespace sjtu
 
 		~ETT()
 		{
-			std::cout << "~ETT " << (void *)this << std::endl;
+			//std::cout << "~ETT " << (void *)this << std::endl;
 		}
 
 		edge root()
@@ -121,6 +135,11 @@ namespace sjtu
 		void modify_subtree(edge pos, std::function<void(edge_info &)> funcModify)
 		{
 			check_iter(pos);
+			if (empty())
+			{
+				assert(pos == root());
+				return;
+			}
 
 			typename ett_splay::iterator iter_l, iter_r;
 			if (pos == root())
@@ -129,6 +148,8 @@ namespace sjtu
 			{
 				get_iter(pos, iter_l, iter_r);
 				++iter_l;
+				if (iter_l == iter_r)
+					return;
 				--iter_r;
 			}
 			modify_range(iter_l, iter_r, funcModify);
@@ -136,6 +157,11 @@ namespace sjtu
 		edge_info query_subtree(edge pos)
 		{
 			check_iter(pos);
+			if (empty())
+			{
+				assert(pos == root());
+				return edge_info();
+			}
 
 			typename ett_splay::iterator iter_l, iter_r;
 			if (pos == root())
@@ -144,6 +170,8 @@ namespace sjtu
 			{
 				get_iter(pos, iter_l, iter_r);
 				++iter_l;
+				if (iter_l == iter_r)
+					return edge_info();
 				--iter_r;
 			}
 			return query_range(iter_l, iter_r);
@@ -180,8 +208,8 @@ namespace sjtu
 		{
 			check_iter(pos);
 
-			std::cout << "BeforeREV-ST: ";
-			dump();
+			//std::cout << "BeforeREV-ST: ";
+			//dump();
 
 			typename ett_splay::iterator l, r;
 			if (flag)
@@ -224,19 +252,19 @@ namespace sjtu
 						return;
 					--r;
 				}
-				std::cout << "FLAG FALSE!" << std::endl;
+				//std::cout << "FLAG FALSE!" << std::endl;
 			}
 
-			dump();
-			std::cout << "REV-ST: L(" << l.get_index() << ") R(" << r.get_index() << ") ";
+			//dump();
+			//std::cout << "REV-ST: L(" << l.get_index() << ") R(" << r.get_index() << ") ";
 
 			auto tmp1 = etour.split(r, ett_splay::after);
 			auto tmp2 = etour.split(l);
 			tmp2.reverse();
-			dump();
+			//dump();
 			etour.merge(tmp2).merge(tmp1);
 
-			dump();
+			//dump();
 		}
 		void modify_range(edge l, edge r, std::function<void(edge_info &)> funcModify)
 		{
@@ -267,8 +295,8 @@ namespace sjtu
 			typename ett_splay::iterator l, r, pl, pr;
 			get_iter(o, l, r);
 
-			std::cout << "PREFER CHILD: ";
-			dump();
+			//std::cout << "PREFER CHILD: ";
+			//dump();
 
 			if (parent == root())
 			{
@@ -281,10 +309,10 @@ namespace sjtu
 			{
 				get_iter(parent, pl, pr);
 				
-				std::cout << "PREFER CHILD PL(" << pl.get_index() << ") PR(" << pr.get_index() <<
+				/*std::cout << "PREFER CHILD PL(" << pl.get_index() << ") PR(" << pr.get_index() <<
 					") L(" << l.get_index() << ") R(" << r.get_index() << ")" << std::endl;
 				std::cout << ">>> O(" << o.get_index() << ") PARENT(" << parent.get_index() << ")" << std::endl;
-				std::cout << ">>> O-ITER(" << o.access().iter.get_index() << std::endl;
+				std::cout << ">>> O-ITER(" << o.access().iter.get_index() << ")" << std::endl;*/
 
 				if (l.get_index() <= pl.get_index())
 					throw std::runtime_error("o is not a child of parent");
@@ -311,11 +339,11 @@ namespace sjtu
 				check_iter(i);
 
 				i->info.metadata.dump();
-				std::cout << "[";
+				std::cerr << "[";
 				i->iter->info.metadata.dump();
-				std::cout << "] ";
+				std::cerr << "] ";
 			}
-			std::cout << std::endl;
+			std::cerr << std::endl;
 		}
 	protected:
 		ETT(typename ett_splay &et) : etour(std::move(et))

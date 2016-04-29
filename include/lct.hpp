@@ -86,6 +86,7 @@ namespace sjtu
 			access(o);
 			lct_splay * sp = o.get_splay();
 			auto tmp = sp->split(o);
+			(--sp->end())->lower = edge_key();
 			o.access().upper = edge_key();
 			o.access().parent = typename lct_splay::iterator();
 			if (!tmp.empty())
@@ -96,7 +97,7 @@ namespace sjtu
 				delete sp;
 			}
 		}
-		void evert(point o)
+		void evert(point o, bool flag = false)
 		{
 			access(o);
 			o.get_splay()->begin()->reverse_edge();
@@ -107,6 +108,7 @@ namespace sjtu
 		point get_root(point o)
 		{
 			access(o);
+			assert(o.get_splay()->begin()->upper == edge_key());
 			return point(o.get_splay()->begin(), this);
 		}
 		point get_lca(point u, point v)
@@ -193,6 +195,8 @@ namespace sjtu
 				stack.push(i);
 			}
 
+			assert(stack.top().get_splay()->begin()->upper == edge_key());
+
 			while (stack.size() >= 2)
 			{
 				auto i = stack.top();
@@ -225,10 +229,26 @@ namespace sjtu
 				on_access(point(), o, edge_key(), o.access().upper, lct_splay::iterator(o) != --o.get_splay()->end());
 
 			auto tmp = o.get_splay()->split(o, lct_splay::after);
+			o.access().lower = edge_key();
 			if (!tmp.empty())
 			{
 				tmp.begin()->parent = o;
 				list_splay.insert(new lct_splay(std::move(tmp)));
+			}
+		}
+
+		void dump()
+		{
+			int cnt = 0;
+			for (auto i : list_splay)
+			{
+				cnt++;
+				std::cerr << "LCT " << cnt << ": ";
+				for (auto j : *i)
+				{
+					std::cerr << j.info.dbg_idx << "[UP(" << j.upper.pnow() << ")DOWN(" << j.lower.pnow() << ") ";
+				}
+				std::cerr << std::endl;
 			}
 		}
 		
@@ -244,7 +264,7 @@ namespace sjtu
 			lct_node(const point_info &info) : info(info), edge_rev(false) {}
 			void reverse_edge()
 			{
-				edge_rev = true;
+				edge_rev ^= 1;
 				std::swap(upper, lower);
 			}
 			void split(lct_node &a, lct_node &b)
