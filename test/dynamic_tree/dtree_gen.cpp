@@ -6,8 +6,8 @@
 #include <set>
 using namespace std;
 
-const int MAXN = 100000;
-const int MAXM = 1000000;
+const int MAXN = 10000;
+const int MAXM = 100000;
 const int RANGE = 500;
 
 default_random_engine ran_engine;

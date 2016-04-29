@@ -88,11 +88,9 @@ namespace sjtu
 		}
 		void evert(iterator o)
 		{
-			//dump();
 			auto root = lct.get_root(o);
 			if (root == o)
 				return;
-			//dump();
 			assert(lct.get_parent(o).is_accessible());
 
 			lct.access(o);
@@ -109,13 +107,9 @@ namespace sjtu
 				subtree->evert(upper);
 				subtree->reverse(upper);
 			}
-			//if (flag) dump();
 			lct.evert(o);
-			//if(flag) dump();
 			o.pt->tree = root->tree;
-			//dump();
 			root->tree = typename std::list<typename dynamic_tree::tree>::iterator();
-			//if(flag) dump();
 		}
 		void link(iterator u, iterator v, const edge_info &e)
 		{
@@ -158,7 +152,6 @@ namespace sjtu
 
 			lct.cut(o);
 			auto tmp = ett->cut(e);
-			//TODO
 			tree_list.push_back(tree());
 			tree &tr = tree_list.back();
 			tr.iter = --tree_list.end();
@@ -206,21 +199,13 @@ namespace sjtu
 			if (root != u)
 				evert(u);
 
-			//std::cout << "EVERT " << u.pt->dbg_idx << ": ";
-			//lct.dump();
 			lct.access(v);
-			//std::cout << "ACCESS " << v.pt->dbg_idx << ": ";
-			//dump();
 
 			tree->modify_range(tree->root(), v.upper_edge(), [&funcModify](ett_info &info) { funcModify(info.metadata); });
-			//std::cout << "MODIFY: ";
-			//dump();
 
 			if (root != u)
 			{
 				evert(iterator(root, this));
-				//std::cout << "EVERT " << root->dbg_idx << ": ";
-				//dump();
 			}
 		}
 		iterator insert()
@@ -235,18 +220,6 @@ namespace sjtu
 		iterator get_root(iterator o)
 		{
 			return iterator(lct.get_root(o), this);
-		}
-
-		void dump()
-		{
-			int cnt = 0;
-			for (auto &i : tree_list)
-			{
-				std::cerr << "ETOUR " << ++cnt << ": ";
-				i.ett->dump();
-			}
-			lct.dump();
-			std::cout << std::endl;
 		}
 
 	protected:
@@ -272,8 +245,6 @@ namespace sjtu
 			}
 			void set_rev()
 			{
-				//if (dbg_idx >= 0)
-				//	std::cerr << "REV: " << dbg_idx << std::endl;
 				rev ^= 1;
 				rev_tag ^= 1;
 			}
@@ -281,10 +252,6 @@ namespace sjtu
 			{
 				if (rev_tag)
 				{
-					/*if (a.dbg_idx >= 0)
-						std::cerr << dbg_idx << " REV PASS TO " << a.dbg_idx << std::endl;
-					if (b.dbg_idx >= 0)
-						std::cerr << dbg_idx << " REV PASS TO " << b.dbg_idx << std::endl;*/
 					a.set_rev(), b.set_rev();
 					rev_tag = false;
 				}
@@ -322,15 +289,12 @@ namespace sjtu
 				pe = parent->tree->ett->root();
 			if (parent->rev && !lock_rev)
 			{
-				//std::cerr << "DO-REV: " << parent->dbg_idx << std::endl;
 				pe.get_ett()->reverse_subtree(pe, flag);
 				parent->rev = false;
 			}
 			if(o.is_accessible())
 				pe.get_ett()->prefer_child(e, pe);
 
-			//std::cerr << "ON ACCESS: ";
-			//dump();
 		}
 	};
 }

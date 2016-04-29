@@ -59,11 +59,6 @@ namespace sjtu
 				return iterator::operator!=(other);
 			}
 
-			void * pnow() const
-			{
-				return now;
-			}
-
 		protected:
 			edge(typename ett_splay::iterator &iter) : iterator(iter) {}
 		};
@@ -78,19 +73,12 @@ namespace sjtu
 			etour.mdata = this;
 		}
 
-		~ETT()
-		{
-			//std::cout << "~ETT " << (void *)this << std::endl;
-		}
-
 		edge root()
 		{
 			return etour.end();
 		}
 		edge insert(const edge_info &einfo, edge pos)
 		{
-			check_iter(pos);
-
 			if (pos.access().iter.get_index() > pos.get_index())
 				pos = pos.access().iter;
 			auto iter1 = etour.insert(node(einfo), pos);
@@ -101,8 +89,6 @@ namespace sjtu
 		}
 		edge link(const edge_info &einfo, edge pos, ETT &other)
 		{
-			check_iter(pos);
-
 			if (pos != root() && pos.access().iter.get_index() > pos.get_index())
 				pos = pos.access().iter;
 			auto ret = etour.insert(node(einfo), pos);
@@ -113,8 +99,6 @@ namespace sjtu
 		}
 		ETT cut(edge pos)
 		{
-			check_iter(pos);
-
 			if (pos == root())
 			{
 				ETT ret(etour);
@@ -134,7 +118,6 @@ namespace sjtu
 		}
 		void modify_subtree(edge pos, std::function<void(edge_info &)> funcModify)
 		{
-			check_iter(pos);
 			if (empty())
 			{
 				assert(pos == root());
@@ -156,7 +139,6 @@ namespace sjtu
 		}
 		edge_info query_subtree(edge pos)
 		{
-			check_iter(pos);
 			if (empty())
 			{
 				assert(pos == root());
@@ -178,8 +160,6 @@ namespace sjtu
 		}
 		void evert(edge pos)
 		{
-			check_iter(pos);
-
 			if (pos == root())
 				return;
 			typename ett_splay::iterator iter_l, iter_r;
@@ -190,8 +170,6 @@ namespace sjtu
 
 		void reverse(edge pos)
 		{
-			check_iter(pos);
-
 			if (pos == root())
 			{
 				etour.reverse();
@@ -206,11 +184,6 @@ namespace sjtu
 		}
 		void reverse_subtree(edge pos, bool flag)
 		{
-			check_iter(pos);
-
-			//std::cout << "BeforeREV-ST: ";
-			//dump();
-
 			typename ett_splay::iterator l, r;
 			if (flag)
 			{
@@ -252,19 +225,12 @@ namespace sjtu
 						return;
 					--r;
 				}
-				//std::cout << "FLAG FALSE!" << std::endl;
 			}
-
-			//dump();
-			//std::cout << "REV-ST: L(" << l.get_index() << ") R(" << r.get_index() << ") ";
 
 			auto tmp1 = etour.split(r, ett_splay::after);
 			auto tmp2 = etour.split(l);
 			tmp2.reverse();
-			//dump();
 			etour.merge(tmp2).merge(tmp1);
-
-			//dump();
 		}
 		void modify_range(edge l, edge r, std::function<void(edge_info &)> funcModify)
 		{
@@ -287,16 +253,10 @@ namespace sjtu
 		}
 		void prefer_child(edge o, edge parent)
 		{
-			check_iter(o);
-			check_iter(parent);
-
 			if (o == root())
 				throw std::runtime_error("Cannot set root as preferred child");
 			typename ett_splay::iterator l, r, pl, pr;
 			get_iter(o, l, r);
-
-			//std::cout << "PREFER CHILD: ";
-			//dump();
 
 			if (parent == root())
 			{
@@ -308,11 +268,6 @@ namespace sjtu
 			else
 			{
 				get_iter(parent, pl, pr);
-				
-				/*std::cout << "PREFER CHILD PL(" << pl.get_index() << ") PR(" << pr.get_index() <<
-					") L(" << l.get_index() << ") R(" << r.get_index() << ")" << std::endl;
-				std::cout << ">>> O(" << o.get_index() << ") PARENT(" << parent.get_index() << ")" << std::endl;
-				std::cout << ">>> O-ITER(" << o.access().iter.get_index() << ")" << std::endl;*/
 
 				if (l.get_index() <= pl.get_index())
 					throw std::runtime_error("o is not a child of parent");
@@ -328,23 +283,6 @@ namespace sjtu
 			return etour.empty();
 		}
 
-		void dump()
-		{
-			dump(etour);
-		}
-		void dump(typename ett_splay &ett)
-		{
-			for (auto i = ett.begin(); i != ett.end();++i)
-			{
-				check_iter(i);
-
-				i->info.metadata.dump();
-				std::cerr << "[";
-				i->iter->info.metadata.dump();
-				std::cerr << "] ";
-			}
-			std::cerr << std::endl;
-		}
 	protected:
 		ETT(typename ett_splay &et) : etour(std::move(et))
 		{
@@ -373,10 +311,10 @@ namespace sjtu
 				iter_l = pos.access().iter, iter_r = pos;
 		}
 
-		void check_iter(typename ett_splay::iterator i)
+		/*void check_iter(typename ett_splay::iterator i)
 		{
 			assert(i == root() || i.access().iter->iter == i);
-		}
+		}*/
 	};
 }
 #endif

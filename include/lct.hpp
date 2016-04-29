@@ -236,21 +236,6 @@ namespace sjtu
 				list_splay.insert(new lct_splay(std::move(tmp)));
 			}
 		}
-
-		void dump()
-		{
-			int cnt = 0;
-			for (auto i : list_splay)
-			{
-				cnt++;
-				std::cerr << "LCT " << cnt << ": ";
-				for (auto j : *i)
-				{
-					std::cerr << j.info.dbg_idx << "[UP(" << j.upper.pnow() << ")DOWN(" << j.lower.pnow() << ") ";
-				}
-				std::cerr << std::endl;
-			}
-		}
 		
 	protected:
 		struct lct_node
