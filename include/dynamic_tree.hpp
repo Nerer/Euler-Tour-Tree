@@ -309,7 +309,7 @@ namespace sjtu
 				else
 				{
 					int t = com->path_root((*com)[root])->tid();
-					com->change_root((*com)[t]);
+					//com->change_root((*com)[t]);
 					splay<info> *ret = new splay<info>(std::move(tplink(x, y, t)));
 					root = t;
 					tplink(x, y, 0);
@@ -514,13 +514,15 @@ namespace sjtu
 		{
 			return t1.get_subtree(x);
 		}
-		void change_root(int x)
-		{
-			t1.change_root(x);
-		}
+		
 		int lca(int x, int y)
 		{
 			return t3.lca(t3[x], t3[y])->id;
+		}
+	private:
+		void change_root(int x)
+		{
+			t1.change_root(x);
 		}
 		void print()
 		{
