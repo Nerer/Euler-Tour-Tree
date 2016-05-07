@@ -9,6 +9,8 @@ template<typename Node>
 class Treap
 {
 public:
+    static int size(Node* t) { return t == NULL ? 0 : t->size; }
+
     Node *join(Node *l, Node *r)
     {
         if(!l) return r;
@@ -27,7 +29,7 @@ public:
                 break;
             }
             num <<= 1;
-            if(l->priority < r->prioirity)
+            if(l->priority < r->priority)
             {
                 Node *tmp = l->right;
                 if(!tmp)
@@ -86,10 +88,10 @@ public:
             else l = p->linkr(l);
             t = p;
         }
-        return pair(l, r);
+        return make_pair(l, r);
     }
 
-    pair<Node*, Node*> split(Node* t) {
+    pair<Node*, Node*> split2(Node* t) {
         Node *p;
         Node *l = t->left;
         Node *r = t->right;
@@ -103,7 +105,7 @@ public:
             else l = p->linkr(l);
             t = p;
         }
-        return pair(l, r);
+        return make_pair(l, r);
     }
 
     Node* comb(Node* h, Node* t)
@@ -139,17 +141,19 @@ public:
     vector<int> firstArc;
     vector<bool> EMark, VMark;
 
+    int arc1(int ei) const { return ei; }
+    int arc2(int ei) const { return ei + (numV() - 1); }
     int numV() const {
         return (int)firstArc.size();
     }
     int numE() const {
         return numV() - 1;
     }
-    
+
     struct Node
     {
         Node *left, *right, *parent;
-        int size, priroity;
+        int size, priority;
         char marks, markUnions;
         
         Node()
@@ -165,12 +169,12 @@ public:
             if(left)
             {
                 sz += left->size;
-                mm |= left->mm;
+                mm |= left->marks;
             }
             if(right)
             {
                 sz += right->size;
-                mm |= right->mm;
+                mm |= right->marks;
             }
             size = sz, markUnions = mm;
             return this;
@@ -191,22 +195,22 @@ public:
             if(r) right = r, r->parent = this;
             return update();
         }
-        Node *cut(Node *t)
+        static Node *cut(Node *t)
         {
             if(t) t->parent = NULL;
             return t;
         }
-        Node *findRoot(Node *t)
+        static const Node *findRoot(const Node *t)
         {
             while(t->parent) t = t->parent;
             return t;
         }
-        Node *findHead(Node *t)
+        static Node *findHead(Node *t)
         {
             while(t->left) t = t->left;
             return t;
         }
-        void updatePath(Node *t)
+        static void updatePath(Node *t)
         {
             while(t)
             {
@@ -216,13 +220,13 @@ public:
         }
     };
 
-    Node::Treap<Node> bst;
+    Treap<Node> bst;
     vector<Node> nodes;
-    int getArc(Node *p) {
+    int getArc(const Node *p) const {
         return p - &nodes[0];
     }
 
-    typedef Node::Treap<Node> mTreap;
+    typedef Treap<Node> mTreap;
 
 
     bool getEMark(int a) const {
@@ -248,8 +252,8 @@ public:
         const Node *root;
         Tree() { }
         Tree(const Node *root): root(root) { }
-        bool operator==(const Tree &other) const { return ref == that.ref; }
-        bool operator!=(const Tree &that) const { return ref != that.ref; }
+        bool operator==(const Tree &other) const { return root == other.root; }
+        bool operator!=(const Tree &other) const { return root != other.root; }
         bool isIsolated() const { return root == NULL; }
     };
 
@@ -260,7 +264,7 @@ public:
 
     int getSize(Tree t) {
         if (t.isIsolated()) return 1;
-        return t.root->size() / 2 + 1;
+        return (t.root)->size / 2 + 1;
     }
  
     
@@ -284,7 +288,7 @@ public:
         Node *l, *m, *r;
         if(uu != -1)
         {
-            pair<Node*, Node*> p = bst.split(&node[uu]);
+            pair<Node*, Node*> p = bst.split(&nodes[uu]);
             m = bst.join(p.second, p.first);
         }
         else
@@ -295,7 +299,7 @@ public:
         }
         if(vv != -1)
         {
-            pair<Node*, Node*> p = bst.split(&node[vv]);
+            pair<Node*, Node*> p = bst.split(&nodes[vv]);
             l = p.first, r = p.second;
         }
         else
@@ -376,19 +380,53 @@ public:
             Node::updatePath(t);
         }
     }
+
+    template<typename Type>
+    bool searchEdges(Tree tree, Type toDo) const {
+        return searchMark<0,Type>(tree, toDo);
+    }
+    template<typename Type>
+    bool searchVertex(Tree tree, Type toDo) const {
+        return searchMark<1,Type>(tree, toDo);
+    }
+
+    template<int Mark, typename Type>
+    bool searchMark(Tree tree, Type toDo) const {
+        if(tree.isIsolated()) return true;
+        const Node *t = tree.root;
+        if(t->markUnions >> Mark & 1)
+            return checkTree<Mark,Type>(t, toDo);
+        else
+            return true;
+    }
+ 
+    template<int Mark, typename Type>
+    bool checkTree(const Node *t, Type toDo) const {
+        const Node *l = t->left, *r = t->right;
+        if(l && (l->markUnions >> Mark & 1))
+            if(!checkTree<Mark,Type>(l, toDo)) return false;
+        if(t->marks >> Mark & 1)
+            if(!toDo(getArc(t))) return false;
+        if(r && (r->markUnions >> Mark & 1))
+            if(!checkTree<Mark,Type>(r, toDo)) return false;
+        return true;
+    }
 };
 
 class DynamicConnectivity
 {
+
 private:
+    typedef Forest::Tree Tree;
     int E;
+    int NV;
     vector< vector<int> > firstE;
     vector<int> nextE, prevE;
     
     vector<char> level;
     vector<Forest> forests;
     int LEVEL;
-    
+    vector<int> from;
     vector<int> treeEdgeIndex;
     vector<int> treeEdgeMap;
     vector<int> freeList;
@@ -399,8 +437,14 @@ private:
     
     int arc1(int ei) { return ei;}
     int arc2(int ei) { return ei + E;}
-    int arcEdge(int i) { return (i >= E ?  i - E : i);}
+    int numV() const {
+        return NV;
+    }
+    int numE() const {
+        return level.size();
+    }
 
+    int arcEdge(int i) { return (i >= E ?  i - E : i);}
     bool replace(int lv, int v, int w) {
         Forest &forest = forests[lv];
         Tree vRoot = forest.getRoot(v), wRoot = forest.getRoot(w);
@@ -413,13 +457,13 @@ private:
         else
             u = w, uRoot = wRoot, uSize = wSize;
  
-        int replacementEdge = -1;
-
+        int replacement = -1;
+        const int Samplings = LEVEL * 10;
         //随机取样一些边进行检查，可以提高效率        
-        forceSearch(forest, uRoot, u, lv);
-        if(replacementEdge != -1 && (int)edges.size() + 1 <= Samplings) {
-            deleteOrdinaryEdge(replacementEdge);
-            addTreeEdge(replacementEdge);
+        searchIncident(forest, uRoot, u, lv, FindReplacement(uRoot, &replacement));
+        if(replacement != -1 && (int)edges.size() + 1 <= Samplings) {
+            deleteOrdinaryEdge(replacement);
+            addTreeEdge(replacement);
             for(int i = 0; i < (int)edges.size(); i ++) {
                 vis[edges[i]] = false;
             }
@@ -432,46 +476,127 @@ private:
             int e = edges[i];
             vis[e] = false;
             deleteOrdinaryEdge(e);
-            Level[e]++;
-            insertOrdinaryEdge(e);
+            level[e]++;
+            addOrdinaryEdge(e);
         }
-        visitedEdges.clear();
+        edges.clear();
  
     
 
         //利用mark在树上进行跳跃，降低复杂度
-        forest.searchEdges(uRoot);
+        forest.searchEdges(uRoot, SearchTreeEdges(this));
 
         for(int i = 0; i < (int)edges.size(); i ++) {
             int t = edges[i];
             int e = treeEdgeMap[t];
-            int v = arcHead[arc2(e)], w = arcHead[arc1(e)];
-            int lv = Level[e];
+            int v = from[arc2(e)], w = from[arc1(e)];
+            int lv = level[e];
  
-            Level[e] = lv + 1;
+            level[e] = lv + 1;
 
             forests[lv].changeEMark(t, false);
-            forests[lv+1].changeEMark(t, true);
-            forests[lv+1].link(t, v, w);
+            forests[lv + 1].changeEMark(t, true);
+            forests[lv + 1].link(t, v, w);
         }
         edges.clear();
  
-        if(replacementEdge != -1) {
-            deleteNontreeEdge(replacementEdge);
-            addTreeEdge(replacementEdge);
+        if(replacement != -1) {
+            deleteOrdinaryEdge(replacement);
+            addTreeEdge(replacement);
             return true;
         } else
         if(lv > 0) {
-            return replace(lv-1, v, w);
+            return replace(lv - 1, v, w);
         }else {
             return false;
         }
     }
+
+    struct SearchTreeEdges {
+        DynamicConnectivity *thisp;
+        SearchTreeEdges(DynamicConnectivity *thisp): thisp(thisp) { }
  
-    void addTreeEdge(int ei, int u, int v)
+        inline bool operator()(int a) {
+            thisp->searchTreeEdges(a);
+            return true;
+        }
+    };
+    void searchTreeEdges(int t) {
+        edges.push_back(t);
+    }
+ 
+    template<typename Type>
+    bool searchIncident(Forest &forest, Tree t, int u, int lv, Type toDo) {
+        if(t.isIsolated())
+            return searchByVertex<Type>(lv, u, toDo);
+        else
+            return forest.searchVertex(t, SearchIncident<Type>(this, lv, toDo));
+    }
+ 
+    template<typename Type>
+    struct SearchIncident {
+        DynamicConnectivity *thisp;
+        int lv;
+        Type toDo;
+ 
+        SearchIncident(DynamicConnectivity *thisp, int lv, Type toDo):
+            thisp(thisp), lv(lv), toDo(toDo) { }
+ 
+        inline bool operator()(int tii) const {
+            return thisp->searchByArc(tii, lv, toDo);
+        }
+    };
+ 
+    template<typename Type>
+    bool searchByArc(int tii, int lv, Type toDo) {
+        bool dir = tii >= numV() - 1;
+        int ti = dir ? tii - (numV() - 1) : tii;
+        int ei = treeEdgeMap[ti];
+        int v = from[arc2(ei)], w = from[arc1(ei)];
+        int u = !(dir != (v > w)) ? v : w; //由边的编号得到出点
+        return searchByVertex(lv, u, toDo);
+    }
+    template<typename Type>
+    bool searchByVertex(int lv, int u, Type toDo) {
+       for (int now = firstE[lv][u]; now != -1; now = nextE[now]) {
+            if (!toDo(this, now)) {
+                return false;
+            }
+        }
+        return true;
+    }
+ 
+    struct FindReplacement {
+        Tree uRoot;
+        int *replacement;
+        FindReplacement(Tree uRoot, int *replacement):
+            uRoot(uRoot), replacement(replacement) {}
+ 
+        inline bool operator()(DynamicConnectivity *thisp, int a) const {
+            return thisp->findReplacement(a, uRoot, replacement);
+        }
+    };
+
+    bool findReplacement(int a, Tree uRoot, int *replacement) {
+        int ei = arcEdge(a);
+        if(vis[ei]) return true;
+ 
+        int lv = level[ei];
+        Tree hRoot = forests[lv].getRoot(from[a]);
+        
+        if(hRoot.isIsolated() || hRoot != uRoot) {
+            *replacement = ei;
+            return false;
+        }
+        vis[ei] = true;
+        edges.push_back(ei);
+        return true;
+    }
+ 
+    void addTreeEdge(int ei)
     {
         int lv = level[ei];
-        
+        int u = from[arc2(ei)], v = from[arc1(ei)];
         int ti = freeList.back();
         freeList.pop_back();
         treeEdgeIndex[ei] = ti;
@@ -481,8 +606,9 @@ private:
         
         for(int i = level[ei]; i >= 0; --i) forests[i].link(ti, u, v);
     }
-    void addOrdinaryEdge(int ei, int u, int v)
+    void addOrdinaryEdge(int ei)
     {
+        int u = from[arc2(ei)], v = from[arc1(ei)];
         int lv = level[ei];//level[ei] = 0, always
         
         {
@@ -505,7 +631,8 @@ private:
         }
     }
 
-    void deleteOrdinaryEdge(int e, int u, int v) {
+    void deleteOrdinaryEdge(int e) {
+        int u = from[arc2(e)], v = from[arc1(e)];
         int lv = level[e];
         int t = arc1(e);
         int next = nextE[t], prev = prevE[t];
@@ -519,12 +646,12 @@ private:
             forests[lv].changeVMark(v, false);
         }
 
-        int t = arc2(e);
+        t = arc2(e);
         next = nextE[t], prevE[next] = prev;
         nextE[t] = prevE[t] = -2;
         if (next != -1) prevE[next] = prev;
         if (prev != -1) nextE[prev] = next;
-        else firestE[lv][v] = next;
+        else firstE[lv][v] = next;
 
         if (next == -1 && prev == -1) {
             forests[lv].changeVMark(u, false);
@@ -533,6 +660,7 @@ private:
 public:
     void init(int N, int tot)
     {
+        NV = N;
         E = tot;
         level.resize(tot);
         level.assign(tot, -1);
@@ -545,7 +673,7 @@ public:
         nextE.assign(tot * 2, -2);
         prevE.assign(tot * 2, -2);
         
-        arcHead.assign(tot * 2, -2);
+        from.assign(tot * 2, -2);
         vis.assign(tot, 0);
         
         freeList.resize(N);
@@ -554,22 +682,22 @@ public:
     bool addEdge(int ei, int u, int v)
     {
         int a1 = arc1(ei), a2 = arc2(ei);
-        arcHead[a1] = u, arcHead[a2] = v;
+        from[a1] = u, from[a2] = v;
         
         bool treeEdge = !forests[0].connected(u, v);
         level[ei] = 0;
-        if(treeEdge) addTreeEdge(ei, u, v);
+        if(treeEdge) addTreeEdge(ei);
         else
         {
             treeEdgeIndex[ei] = -1;
-            if(u != v) addOrdinaryEdge(ei, u, v);
+            if(u != v) addOrdinaryEdge(ei);
         }
         
         return treeEdge;
     }
     bool deleteEdge(int e) {
         int a1 = arc1(e), a2 = arc2(e);
-        int v = arcHead[a2], w = arcHead[a1]; 
+        int v = from[a2], w = from[a1]; 
         int lv = level[e];
         int which = treeEdgeIndex[e];
  
@@ -585,11 +713,11 @@ public:
             splitted = !replace(lv, v, w);
         }else {
             if(v != w) {
-                deleteOrdinaryEdge(e, v, w);
+                deleteOrdinaryEdge(e);
             }
         }
-        arcHead[a1] = arcHead[a2] = -1;
-        level[ei] = -1;
+        from[a1] = from[a2] = -1;
+        level[e] = -1;
         return splitted;
     }
 };
