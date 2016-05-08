@@ -3,6 +3,7 @@
 #include <cstring>
 #include <algorithm>
 #include <vector>
+#include <cassert>
 using namespace std;
 
 template<typename Node>
@@ -43,6 +44,7 @@ public:
             else
             {
                 Node *tmp = r->left;
+                num |= 1;
                 if(!tmp)
                 {
                     t = l;
@@ -50,9 +52,8 @@ public:
                     break;
                 }
                 r = tmp;
-                num |= 1;
             }
-        }
+        } 
         for(; h >= 0; --h)
         {
             if(!(num & 1))
@@ -69,7 +70,6 @@ public:
             }
             num >>= 1;
         }
-        
         return t;
     }
     //cut the line between t->left and t
@@ -81,7 +81,7 @@ public:
         Node::cut(l);
         t->linkl(NULL);
         while(t->parent)
-        {
+        {   
             p = t->parent;
             t->parent = NULL;
             if(p->left == t) r = p->linkl(r);
@@ -96,7 +96,8 @@ public:
         Node *l = t->left;
         Node *r = t->right;
         Node::cut(l);
-        t->linkl(NULL);
+        Node::cut(r);
+        t->linklr(NULL, NULL);
         while(t->parent)
         {
             p = t->parent;
@@ -131,7 +132,7 @@ public:
         }
         return tmp;
     }
-};
+}; 
 
 
 
@@ -282,9 +283,8 @@ public:
     void link(int ti, int u, int v)
     {
         int a1 = arc1(ti), a2 = arc2(ti);
-        if(u > v) swap(a1, a2);
+        if(u > v) swap(u, v);
         int uu = firstArc[u], vv = firstArc[v];
-        
         Node *l, *m, *r;
         if(uu != -1)
         {
@@ -308,10 +308,8 @@ public:
             firstArc[v] = a2;
             firstArcChanged(v, -1, a2);
         }
-        
         m = bst.comb(&nodes[a2], m);
         r = bst.comb(&nodes[a1], r);
-        
         bst.join(bst.join(l, m), r);
     }
 
@@ -436,7 +434,7 @@ private:
     vector<int> edges;
     
     int arc1(int ei) { return ei;}
-    int arc2(int ei) { return ei + E;}
+    int arc2(int ei) { return ei + numE();}
     int numV() const {
         return NV;
     }
@@ -444,7 +442,7 @@ private:
         return level.size();
     }
 
-    int arcEdge(int i) { return (i >= E ?  i - E : i);}
+    int arcEdge(int i) { return (i >= numE() ?  i - numE() : i);}
     bool replace(int lv, int v, int w) {
         Forest &forest = forests[lv];
         Tree vRoot = forest.getRoot(v), wRoot = forest.getRoot(w);
@@ -601,10 +599,8 @@ private:
         freeList.pop_back();
         treeEdgeIndex[ei] = ti;
         treeEdgeMap[ti] = ei;
-        
         forests[lv].changeEMark(ti, 1);
-        
-        for(int i = level[ei]; i >= 0; --i) forests[i].link(ti, u, v);
+        for(int i = 0; i <= lv; ++i) forests[i].link(ti, u, v);
     }
     void addOrdinaryEdge(int ei)
     {
@@ -668,21 +664,25 @@ public:
         while(1 << LEVEL <= N / 2) LEVEL++;
         forests.resize(LEVEL);
         for(int i = 0; i < LEVEL; ++i) forests[i].init(N);
+
         firstE.resize(LEVEL);
         for(int i = 0; i < LEVEL; ++i) firstE[i].assign(N, -1);
         nextE.assign(tot * 2, -2);
         prevE.assign(tot * 2, -2);
         
-        from.assign(tot * 2, -2);
+        treeEdgeIndex.assign(E, -1);
+        treeEdgeMap.assign(N - 1, -1);
+ 
+        from.assign(tot * 2, -1);
         vis.assign(tot, 0);
         
-        freeList.resize(N);
-        for(int i = 0; i < N; ++i) freeList[i] = i;
+        freeList.resize(N - 1);
+        for(int i = 0; i < N - 1; ++i) freeList[i] = i;
     }
     bool addEdge(int ei, int u, int v)
     {
         int a1 = arc1(ei), a2 = arc2(ei);
-        from[a1] = u, from[a2] = v;
+        from[a1] = v, from[a2] = u;
         
         bool treeEdge = !forests[0].connected(u, v);
         level[ei] = 0;
@@ -734,11 +734,10 @@ int main()
     int tot = 0;
     for(int i = 0; i < N; ++i)
     {
-        ind[i].resize(N - i);
-        for(int j = i + 1; j < N; ++j)
+        ind[i].resize(i);
+        for(int j = 0; j < i; ++j)
             ind[i][j] = tot++;
     }
-    
     DynamicConnectivity dc;
     dc.init(N, tot);
     
@@ -750,7 +749,7 @@ int main()
         scanf("%d%d", &S, &T);
         --S, --T;
         if(S == T) continue;
-        if(S > T) swap(S, T);
+        if(S < T) swap(S, T);
         int ei = ind[S][T];
         if(!EdgeExist[ei])
         {
@@ -762,7 +761,6 @@ int main()
             parts += dc.deleteEdge(ei);
             EdgeExist[ei] = false;
         }
-        
         printf("Number of Components = %d\n", parts);
     }
     
